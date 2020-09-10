@@ -1,3 +1,4 @@
+// Package subcmd provides types and functions for creating command-line interfaces with subcommands and flags.
 package subcmd
 
 import (
@@ -13,7 +14,7 @@ import (
 
 var errType = reflect.TypeOf((*error)(nil)).Elem()
 
-// Cmd is a command with some number of subcommands.
+// Cmd is the way a command tells Run how to parse and run its subcommands.
 type Cmd interface {
 	// Subcmds returns this Cmd's subcommands as a map,
 	// whose keys are subcommand names and values are Subcmd objects.
@@ -270,6 +271,8 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 // Type is the type of a Param.
 type Type int
 
+// Possible Param types.
+// These correspond with the types in the standard flag package.
 const (
 	Bool Type = iota + 1
 	Int
