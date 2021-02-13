@@ -151,6 +151,14 @@ func Params(a ...interface{}) []Param {
 	return result
 }
 
+var (
+	// ErrNoArgs is the error when Run is called with an empty list of args.
+	ErrNoArgs = errors.New("no arguments")
+
+	// ErrUnknown is the error when Run is called with an unknown subcommand as args[0].
+	ErrUnknown = errors.New("unknown subcommand")
+)
+
 // Run runs the subcommand of c named in args[0].
 // The remaining args are parsed with a new flag.FlagSet,
 // populated according to the parameters of the named Subcmd.
@@ -169,14 +177,14 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 	cmdnames.Sort()
 
 	if len(args) == 0 {
-		return fmt.Errorf("no subcommand name given, want one of %v", cmdnames)
+		return errors.Wrapf(ErrNoArgs, "possible subcommands: %v", cmdnames)
 	}
 
 	name := args[0]
 	args = args[1:]
 	subcmd, ok := cmds[name]
 	if !ok {
-		return fmt.Errorf("unknown subcommand %s, want one of %v", name, cmdnames)
+		return errors.Wrapf(ErrUnknown, "got %s, want one of %v", name, cmdnames)
 	}
 
 	var ptrs []reflect.Value
