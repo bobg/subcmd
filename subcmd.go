@@ -19,8 +19,12 @@ type Cmd interface {
 	// Subcmds returns this Cmd's subcommands as a map,
 	// whose keys are subcommand names and values are Subcmd objects.
 	// Implementations may use the Commands function to build this map.
-	Subcmds() map[string]Subcmd
+	Subcmds() Map
 }
+
+// Map is the type of the data structure returned by Cmd.Subcmds and by Commands.
+// It maps a subcommand name to its Subcmd structure.
+type Map = map[string]Subcmd
 
 // Subcmd is one subcommand of a Cmd.
 type Subcmd struct {
@@ -72,7 +76,7 @@ type Param struct {
 //
 // is equivalent to:
 //
-//   map[string]Subcmd{
+//   Map{
 //     "foo": Subcmd{
 //       F: foo,
 //       Params: []Param{
@@ -98,12 +102,12 @@ type Param struct {
 //  }
 //
 // This function panics if the number or types of the arguments are wrong.
-func Commands(args ...interface{}) map[string]Subcmd {
+func Commands(args ...interface{}) Map {
 	if len(args)%3 != 0 {
 		panic(fmt.Sprintf("S has %d arguments, which is not divisible by 3", len(args)))
 	}
 
-	result := make(map[string]Subcmd)
+	result := make(Map)
 
 	for len(args) > 0 {
 		var (
