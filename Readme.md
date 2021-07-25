@@ -1,7 +1,8 @@
 # Subcmd - command-line interfaces with subcommands and flags
 
-[![GoDoc](https://godoc.org/github.com/bobg/subcmd?status.svg)](https://godoc.org/github.com/bobg/subcmd)
+[![Go Reference](https://pkg.go.dev/badge/github.com/bobg/subcmd.svg)](https://pkg.go.dev/github.com/bobg/modver)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bobg/subcmd)](https://goreportcard.com/report/github.com/bobg/subcmd)
+![Tests](https://github.com/bobg/subcmd/actions/workflows/go.yml/badge.svg)
 
 This is subcmd,
 a Go package that is a layer on top of the standard `flag` package.
