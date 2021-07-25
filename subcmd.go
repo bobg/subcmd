@@ -32,6 +32,7 @@ type Subcmd struct {
 	// Its signature must be func(context.Context, ..., []string) error,
 	// where the number and types of parameters between the context and the string slice
 	// is given by Params.
+	// The error return is optional.
 	F interface{}
 
 	// Params describes the parameters to F
@@ -41,7 +42,8 @@ type Subcmd struct {
 
 // Param is one parameter of a Subcmd.
 type Param struct {
-	// Name is the flag name for the parameter (e.g., "verbose" for a -verbose flag).
+	// Name is the flag name for the parameter
+	// (e.g., "verbose" for a -verbose flag).
 	Name string
 
 	// Type is the type of the parameter.
@@ -171,6 +173,7 @@ var (
 // and a slice of the args left over after FlagSet parsing.
 // The FlagSet is placed in the context object that's passed to the Subcmd's function,
 // and can be retrieved if needed with the FlagSet function.
+// No FlagSet is present if the subcommand takes no parameters.
 func Run(ctx context.Context, c Cmd, args []string) error {
 	cmds := c.Subcmds()
 
@@ -268,15 +271,20 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 		}
 	}
 
-	if numOut := ft.NumOut(); numOut != 1 {
-		return fmt.Errorf("function for subcommand %s returns %d args, want 1", name, numOut)
+	numOut := ft.NumOut()
+	if numOut > 1 {
+		return fmt.Errorf("function for subcommand %s returns %d values, want 0 or 1", name, numOut)
 	}
-	if !ft.Out(0).Implements(errType) {
+	if numOut == 1 && !ft.Out(0).Implements(errType) {
 		return fmt.Errorf("return type is not error")
 	}
 
 	rv := fv.Call(argvals)
-	err, _ := rv[0].Interface().(error)
+
+	var err error
+	if numOut == 1 {
+		err, _ = rv[0].Interface().(error)
+	}
 	return errors.Wrapf(err, "running %s", name)
 }
 

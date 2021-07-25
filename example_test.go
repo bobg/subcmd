@@ -23,12 +23,16 @@ func Example() {
 		panic(err)
 	}
 
-	// Now run the subcommand specified in the remaining command-line args,
-	// parsing any of its flags and passing them as function arguments.
+	// Stash the relevant info into an object that implements the subcmd.Cmd interface.
 	cmd := command{
 		conf:    string(confData),
 		verbose: *verbose,
 	}
+
+	// Pass that object to subcmd.Run,
+	// which will parse a subcommand and its flags
+	// from the remaining command-line arguments
+	// and run them.
 	err = subcmd.Run(context.Background(), cmd, flag.Args())
 	if err != nil {
 		panic(err)
@@ -45,7 +49,10 @@ type command struct {
 	verbose bool
 }
 
-func (c command) Subcmds() map[string]subcmd.Subcmd {
+func (c command) Subcmds() subcmd.Map {
+	// There are two subcommands:
+	// hello, which takes -name and -spanish flags,
+	// and add, which takes no flags.
 	return subcmd.Commands(
 		"hello", hello, subcmd.Params(
 			"name", subcmd.String, "", "name to greet",
@@ -55,7 +62,13 @@ func (c command) Subcmds() map[string]subcmd.Subcmd {
 	)
 }
 
-func hello(_ context.Context, name string, spanish bool, _ []string) error {
+// The implementation of a subcommand takes a context object,
+// the values of its parsed flags,
+// and a slice of remaining command-line arguments
+// (which could be used in another call to subcmd.Run
+// to implement a sub-subcommand).
+// It can optionally return an error.
+func hello(_ context.Context, name string, spanish bool, _ []string) {
 	if spanish {
 		fmt.Print("Hola")
 	} else {
@@ -65,7 +78,6 @@ func hello(_ context.Context, name string, spanish bool, _ []string) error {
 		fmt.Printf(" %s", name)
 	}
 	fmt.Print("\n")
-	return nil
 }
 
 func (c command) add(_ context.Context, args []string) error {
