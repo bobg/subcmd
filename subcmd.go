@@ -194,68 +194,10 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 		return errors.Wrapf(ErrUnknown, "got %s, want one of %v", name, cmdnames)
 	}
 
-	var ptrs []reflect.Value
-
-	if len(subcmd.Params) > 0 {
-		fs := flag.NewFlagSet("", flag.ContinueOnError)
-		ctx = context.WithValue(ctx, fskey, fs)
-
-		for _, p := range subcmd.Params {
-			var v interface{}
-
-			switch p.Type {
-			case Bool:
-				dflt, _ := p.Default.(bool)
-				v = fs.Bool(p.Name, dflt, p.Doc)
-
-			case Int:
-				dflt, _ := p.Default.(int)
-				v = fs.Int(p.Name, dflt, p.Doc)
-
-			case Int64:
-				dflt, _ := p.Default.(int64)
-				v = fs.Int64(p.Name, dflt, p.Doc)
-
-			case Uint:
-				dflt, _ := p.Default.(uint)
-				v = fs.Uint(p.Name, dflt, p.Doc)
-
-			case Uint64:
-				dflt, _ := p.Default.(uint64)
-				v = fs.Uint64(p.Name, dflt, p.Doc)
-
-			case String:
-				dflt, _ := p.Default.(string)
-				v = fs.String(p.Name, dflt, p.Doc)
-
-			case Float64:
-				dflt, _ := p.Default.(float64)
-				v = fs.Float64(p.Name, dflt, p.Doc)
-
-			case Duration:
-				dflt, _ := p.Default.(time.Duration)
-				v = fs.Duration(p.Name, dflt, p.Doc)
-
-			default:
-				return fmt.Errorf("unknown arg type %v", p.Type)
-			}
-
-			ptrs = append(ptrs, reflect.ValueOf(v))
-		}
-
-		err := fs.Parse(args)
-		if err != nil {
-			return errors.Wrap(err, "parsing args")
-		}
-
-		args = fs.Args()
+	argvals, err := parseArgs(ctx, subcmd.Params, args)
+	if err != nil {
+		return err
 	}
-
-	argvals := []reflect.Value{reflect.ValueOf(ctx)}
-	for _, ptr := range ptrs {
-		argvals = append(argvals, ptr.Elem())
-	}
-	argvals = append(argvals, reflect.ValueOf(args))
 
 	fv := reflect.ValueOf(subcmd.F)
 	ft := fv.Type()
@@ -281,11 +223,79 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 
 	rv := fv.Call(argvals)
 
-	var err error
 	if numOut == 1 {
 		err, _ = rv[0].Interface().(error)
 	}
 	return errors.Wrapf(err, "running %s", name)
+}
+
+func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Value, error) {
+	if len(params) == 0 {
+		return nil, nil
+	}
+
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	ctx = context.WithValue(ctx, fskey, fs)
+
+	var ptrs []reflect.Value
+
+	for _, p := range params {
+		var v interface{}
+
+		switch p.Type {
+		case Bool:
+			dflt, _ := p.Default.(bool)
+			v = fs.Bool(p.Name, dflt, p.Doc)
+
+		case Int:
+			dflt, _ := p.Default.(int)
+			v = fs.Int(p.Name, dflt, p.Doc)
+
+		case Int64:
+			dflt, _ := p.Default.(int64)
+			v = fs.Int64(p.Name, dflt, p.Doc)
+
+		case Uint:
+			dflt, _ := p.Default.(uint)
+			v = fs.Uint(p.Name, dflt, p.Doc)
+
+		case Uint64:
+			dflt, _ := p.Default.(uint64)
+			v = fs.Uint64(p.Name, dflt, p.Doc)
+
+		case String:
+			dflt, _ := p.Default.(string)
+			v = fs.String(p.Name, dflt, p.Doc)
+
+		case Float64:
+			dflt, _ := p.Default.(float64)
+			v = fs.Float64(p.Name, dflt, p.Doc)
+
+		case Duration:
+			dflt, _ := p.Default.(time.Duration)
+			v = fs.Duration(p.Name, dflt, p.Doc)
+
+		default:
+			return nil, fmt.Errorf("unknown arg type %v", p.Type)
+		}
+
+		ptrs = append(ptrs, reflect.ValueOf(v))
+	}
+
+	err := fs.Parse(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "parsing args")
+	}
+
+	args = fs.Args()
+
+	argvals := []reflect.Value{reflect.ValueOf(ctx)}
+	for _, ptr := range ptrs {
+		argvals = append(argvals, ptr.Elem())
+	}
+	argvals = append(argvals, reflect.ValueOf(args))
+
+	return argvals, nil
 }
 
 // Type is the type of a Param.
