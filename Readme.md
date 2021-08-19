@@ -3,6 +3,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/bobg/subcmd.svg)](https://pkg.go.dev/github.com/bobg/subcmd)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bobg/subcmd)](https://goreportcard.com/report/github.com/bobg/subcmd)
 ![Tests](https://github.com/bobg/subcmd/actions/workflows/go.yml/badge.svg)
+[![Coverage Status](https://coveralls.io/repos/github/bobg/subcmd/badge.svg?branch=master)](https://coveralls.io/github/bobg/subcmd?branch=master)
 
 This is subcmd,
 a Go package for writing command-line programs that require flag parsing
