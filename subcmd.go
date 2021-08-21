@@ -230,10 +230,6 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 }
 
 func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Value, error) {
-	if len(params) == 0 {
-		return nil, nil
-	}
-
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
 	ctx = context.WithValue(ctx, fskey, fs)
 

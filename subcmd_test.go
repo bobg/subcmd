@@ -10,6 +10,13 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+func TestNoArgs(t *testing.T) {
+	err := Run(context.Background(), command{}, []string{"y"})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestRun(t *testing.T) {
 	var (
 		ctx  = context.Background()
@@ -143,6 +150,7 @@ func (c command) Subcmds() Map {
 			"float64opt", Float64, 0, "",
 			"duropt", Duration, 0, "",
 		),
+		"y", c.ycmd, nil,
 	)
 }
 
@@ -216,6 +224,8 @@ func TestCommands(t *testing.T) {
 		t.Errorf("mismatch (-want +got):\n%s", diff)
 	}
 }
+
+func (command) ycmd(_ context.Context, _ []string) error { return nil }
 
 // The following is needed because cmp.Diff
 // (and reflect.DeepEqual for that matter)
