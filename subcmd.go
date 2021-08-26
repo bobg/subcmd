@@ -5,8 +5,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"reflect"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -38,6 +40,9 @@ type Subcmd struct {
 	// Params describes the parameters to F
 	// (excluding the initial context.Context that F takes, and the final []string).
 	Params []Param
+
+	// Desc is a one-line description of this subcommand.
+	Desc string
 }
 
 // Param is one parameter of a Subcmd.
@@ -58,20 +63,21 @@ type Param struct {
 }
 
 // Commands is a convenience function for producing the map needed by a Cmd.
-// It takes 3n arguments,
+// It takes 4n arguments,
 // where n is the number of subcommands.
 // Each group of three is:
 // - the subcommand name, a string;
 // - the function implementing the subcommand;
+// - a short description of the subcommand;
 // - the list of parameters for the function, a slice of Param (which can be produced with Params).
 //
 // A call like this:
 //
 //   Commands(
-//     "foo", foo, Params(
+//     "foo", foo, "is the foo subcommand", Params(
 //       "verbose", Bool, false, "be verbose",
 //     ),
-//     "bar", bar, Params(
+//     "bar", bar, "is the bar subcommand", Params(
 //       "level", Int, 0, "barness level",
 //     ),
 //   )
@@ -89,6 +95,7 @@ type Param struct {
 //           Doc: "be verbose",
 //         },
 //       },
+//       Desc: "is the foo subcommand",
 //     },
 //     "bar": Subcmd{
 //       F: bar,
@@ -100,13 +107,14 @@ type Param struct {
 //           Doc: "barness level",
 //         },
 //       },
+//       Desc: "is the bar subcommand",
 //     },
 //  }
 //
 // This function panics if the number or types of the arguments are wrong.
 func Commands(args ...interface{}) Map {
-	if len(args)%3 != 0 {
-		panic(fmt.Sprintf("S has %d arguments, which is not divisible by 3", len(args)))
+	if len(args)%4 != 0 {
+		panic(fmt.Sprintf("S has %d arguments, which is not divisible by 4", len(args)))
 	}
 
 	result := make(Map)
@@ -115,15 +123,16 @@ func Commands(args ...interface{}) Map {
 		var (
 			name = args[0].(string)
 			f    = args[1]
-			p    = args[2]
+			d    = args[2].(string)
+			p    = args[3]
 		)
-		subcmd := Subcmd{F: f}
+		subcmd := Subcmd{F: f, Desc: d}
 		if p != nil {
 			subcmd.Params = p.([]Param)
 		}
 		result[name] = subcmd
 
-		args = args[3:]
+		args = args[4:]
 	}
 
 	return result
@@ -177,21 +186,16 @@ var (
 func Run(ctx context.Context, c Cmd, args []string) error {
 	cmds := c.Subcmds()
 
-	var cmdnames sort.StringSlice
-	for cmdname := range cmds {
-		cmdnames = append(cmdnames, cmdname)
-	}
-	cmdnames.Sort()
-
 	if len(args) == 0 {
-		return errors.Wrapf(ErrNoArgs, "possible subcommands: %v", cmdnames)
+		return doHelp(c, "", nil)
 	}
 
 	name := args[0]
 	args = args[1:]
 	subcmd, ok := cmds[name]
+
 	if !ok {
-		return errors.Wrapf(ErrUnknown, "got %s, want one of %v", name, cmdnames)
+		return doHelp(c, name, args)
 	}
 
 	argvals, err := parseArgs(ctx, subcmd.Params, args)
@@ -226,14 +230,46 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 	if numOut == 1 {
 		err, _ = rv[0].Interface().(error)
 	}
+
+	var usageErr *UsageErr
+	if errors.As(err, &usageErr) {
+		usageErr.names = append(usageErr.names, name)
+		return usageErr
+	}
+
 	return errors.Wrapf(err, "running %s", name)
 }
 
 func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Value, error) {
-	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs, ptrs, err := ToFlagSet(params)
+	if err != nil {
+		return nil, err
+	}
+
+	err = fs.Parse(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "parsing args")
+	}
+
+	args = fs.Args()
 	ctx = context.WithValue(ctx, fskey, fs)
 
-	var ptrs []reflect.Value
+	argvals := []reflect.Value{reflect.ValueOf(ctx)}
+	for _, ptr := range ptrs {
+		argvals = append(argvals, ptr.Elem())
+	}
+	argvals = append(argvals, reflect.ValueOf(args))
+
+	return argvals, nil
+}
+
+// ToFlagSet produces a *flag.FlagSet from the given params,
+// plus a list of properly typed pointers in which to store the result of calling Parse on the FlagSet.
+func ToFlagSet(params []Param) (*flag.FlagSet, []reflect.Value, error) {
+	var (
+		fs   = flag.NewFlagSet("", flag.ContinueOnError)
+		ptrs []reflect.Value
+	)
 
 	for _, p := range params {
 		var v interface{}
@@ -272,26 +308,13 @@ func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Va
 			v = fs.Duration(p.Name, dflt, p.Doc)
 
 		default:
-			return nil, fmt.Errorf("unknown arg type %v", p.Type)
+			return nil, nil, fmt.Errorf("unknown arg type %v", p.Type)
 		}
 
 		ptrs = append(ptrs, reflect.ValueOf(v))
 	}
 
-	err := fs.Parse(args)
-	if err != nil {
-		return nil, errors.Wrap(err, "parsing args")
-	}
-
-	args = fs.Args()
-
-	argvals := []reflect.Value{reflect.ValueOf(ctx)}
-	for _, ptr := range ptrs {
-		argvals = append(argvals, ptr.Elem())
-	}
-	argvals = append(argvals, reflect.ValueOf(args))
-
-	return argvals, nil
+	return fs, ptrs, nil
 }
 
 // Type is the type of a Param.
@@ -318,4 +341,80 @@ var fskey fskeytype
 func FlagSet(ctx context.Context) *flag.FlagSet {
 	val := ctx.Value(fskey)
 	return val.(*flag.FlagSet)
+}
+
+// Called when an unknown subcommand is specified,
+// or no subcommand is given.
+func doHelp(c Cmd, subname string, args []string) error {
+	cmds := c.Subcmds()
+
+	var maxlen int
+
+	var cmdnames sort.StringSlice
+	for cmdname := range cmds {
+		cmdnames = append(cmdnames, cmdname)
+		if len(cmdname) > maxlen {
+			maxlen = len(cmdname)
+		}
+	}
+	cmdnames.Sort()
+
+	format := fmt.Sprintf("  %%-%d.%ds  %%s\n", maxlen, maxlen)
+
+	if subname == "" {
+		fmt.Fprint(os.Stderr, "Subcommand expected, one of:\n\n")
+		for _, cmdname := range cmdnames {
+			fmt.Fprintf(os.Stderr, format, cmdname, cmds[cmdname].Desc)
+		}
+		return nil
+	}
+
+	if subname == "help" && len(args) > 0 {
+		sub, ok := cmds[args[0]]
+		if !ok {
+			fmt.Fprintf(os.Stderr, "Unrecognized subcommand \"%s\", want one of:\n\n", subname)
+			for _, cmdname := range cmdnames {
+				fmt.Fprintf(os.Stderr, format, cmdname, cmds[cmdname].Desc)
+			}
+			return nil
+		}
+
+		fs, _, err := ToFlagSet(sub.Params)
+		if err != nil {
+			return err
+		}
+
+		b := new(strings.Builder)
+		fs.SetOutput(b)
+		fs.PrintDefaults()
+		return &UsageErr{names: []string{args[0]}, defaults: b.String()}
+	}
+
+	if subname == "help" {
+		fmt.Fprint(os.Stderr, "Subcommands:\n\n")
+		for _, cmdname := range cmdnames {
+			fmt.Fprintf(os.Stderr, format, cmdname, cmds[cmdname].Desc)
+		}
+		return nil
+	}
+
+	fmt.Fprintf(os.Stderr, "Unrecognized subcommand \"%s\", want one of:\n\n", subname)
+	for _, cmdname := range cmdnames {
+		fmt.Fprintf(os.Stderr, format, cmdname, cmds[cmdname].Desc)
+	}
+
+	return nil
+}
+
+type UsageErr struct {
+	names    []string
+	defaults string
+}
+
+func (e *UsageErr) Error() string {
+	names := make([]string, len(e.names))
+	for i := 0; i < len(e.names); i++ {
+		names[i] = e.names[len(e.names)-1-i]
+	}
+	return fmt.Sprintf("usage: %s [flags] ...\n%s", strings.Join(names, " "), e.defaults)
 }

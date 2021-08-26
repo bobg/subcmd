@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"strconv"
 
-	"github.com/bobg/subcmd"
+	"github.com/bobg/subcmd/v2"
 )
 
 func Example() {
@@ -54,11 +54,11 @@ func (c command) Subcmds() subcmd.Map {
 	// hello, which takes -name and -spanish flags,
 	// and add, which takes no flags.
 	return subcmd.Commands(
-		"hello", hello, subcmd.Params(
+		"hello", hello, "say hello in English or Spanish", subcmd.Params(
 			"name", subcmd.String, "", "name to greet",
 			"spanish", subcmd.Bool, false, "greet in Spanish",
 		),
-		"add", c.add, nil,
+		"add", c.add, "add up some numbers", nil,
 	)
 }
 

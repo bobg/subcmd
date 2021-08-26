@@ -140,7 +140,7 @@ type command struct {
 
 func (c command) Subcmds() Map {
 	return Commands(
-		"x", c.xcmd, Params(
+		"x", c.xcmd, "x", Params(
 			"boolopt", Bool, false, "",
 			"intopt", Int, 0, "",
 			"int64opt", Int64, 0, "",
@@ -150,7 +150,7 @@ func (c command) Subcmds() Map {
 			"float64opt", Float64, 0, "",
 			"duropt", Duration, 0, "",
 		),
-		"y", c.ycmd, nil,
+		"y", c.ycmd, "y", nil,
 	)
 }
 
@@ -195,11 +195,11 @@ func (c command) xcmd(
 
 func TestCommands(t *testing.T) {
 	got := Commands(
-		"foo", foocmd, Params(
+		"foo", foocmd, "foo command", Params(
 			"a", Bool, false, "flag a",
 			"b", Int, 0, "flag b",
 		),
-		"bar", barcmd, nil,
+		"bar", barcmd, "bar command", nil,
 	)
 	want := Map{
 		"foo": Subcmd{
@@ -215,9 +215,11 @@ func TestCommands(t *testing.T) {
 				Default: 0,
 				Doc:     "flag b",
 			}},
+			Desc: "foo command",
 		},
 		"bar": Subcmd{
-			F: barcmd,
+			F:    barcmd,
+			Desc: "bar command",
 		},
 	}
 	if diff := cmp.Diff(want, got, fooopt, baropt); diff != "" {
