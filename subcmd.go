@@ -45,6 +45,55 @@ type Subcmd struct {
 	Desc string
 }
 
+func (s Subcmd) Usage(long bool) (string, error) {
+	fs, _, err := ToFlagSet(s.Params)
+	if err != nil {
+		return "", err
+	}
+
+	var result []string
+
+	fs.VisitAll(func(f *flag.Flag) {
+		name, u := flag.UnquoteUsage(f)
+		if long {
+			if name == "" {
+				result = append(result, "-"+f.Name)
+			} else {
+				result = append(result, fmt.Sprintf("-%s %s", f.Name, name))
+			}
+			result = append(result, u)
+		} else {
+			if name == "" {
+				result = append(result, fmt.Sprintf("[-%s]", f.Name))
+			} else {
+				result = append(result, fmt.Sprintf("[-%s %s]", f.Name, name))
+			}
+		}
+	})
+
+	if long {
+		var maxlen int
+		for i := 0; i < len(result); i += 2 {
+			if len(result[i]) > maxlen {
+				maxlen = len(result[i])
+			}
+		}
+
+		var (
+			format = fmt.Sprintf("%%-%d.%ds  %%s\n", maxlen, maxlen)
+			b      = new(strings.Builder)
+		)
+
+		fmt.Fprintln(b, s.Desc)
+		for i := 0; i < len(result); i += 2 {
+			fmt.Fprintf(b, format, result[i], result[i+1])
+		}
+		return b.String(), nil
+	}
+
+	return strings.Join(result, " "), nil
+}
+
 // Param is one parameter of a Subcmd.
 type Param struct {
 	// Name is the flag name for the parameter
