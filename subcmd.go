@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -45,8 +46,17 @@ type Subcmd struct {
 	Desc string
 }
 
+// Usage produces a usage string for s in approximately the style of flag.PrintDefaults.
+// If `long` is true,
+// the result is a multiline string whose first line is s.Desc
+// and whose remaining lines,
+// one per parameter,
+// is the description of that parameter
+// (like "-name string  Name to greet").
+// Otherwise the result is a single line that looks like
+// "[-name string] [-spanish]"
 func (s Subcmd) Usage(long bool) (string, error) {
-	fs, _, err := ToFlagSet(s.Params)
+	fs, _, _, err := ToFlagSet(s.Params)
 	if err != nil {
 		return "", err
 	}
@@ -290,7 +300,7 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 }
 
 func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Value, error) {
-	fs, ptrs, err := ToFlagSet(params)
+	fs, ptrs, positional, err := ToFlagSet(params)
 	if err != nil {
 		return nil, err
 	}
@@ -307,6 +317,103 @@ func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Va
 	for _, ptr := range ptrs {
 		argvals = append(argvals, ptr.Elem())
 	}
+
+	for _, p := range positional {
+		if len(args) == 0 && !strings.HasSuffix(p.Name, "?") {
+			// xxx error
+		}
+
+		switch p.Type {
+		case Bool:
+			var val bool
+			if len(args) > 0 {
+				val, err = strconv.ParseBool(args[0])
+				if err != nil {
+					// xxx
+				}
+				args = args[1:]
+			}
+			argvals = append(argvals, reflect.ValueOf(val))
+
+		case Int:
+			var val int64
+			if len(args) > 0 {
+				val, err = strconv.ParseInt(args[0], 10, 32)
+				if err != nil {
+					// xxx
+				}
+				args = args[1:]
+			}
+			argvals = append(argvals, reflect.ValueOf(int(val)))
+
+		case Int64:
+			var val int64
+			if len(args) > 0 {
+				val, err = strconv.ParseInt(args[0], 10, 64)
+				if err != nil {
+					// xxx
+				}
+				args = args[1:]
+			}
+			argvals = append(argvals, reflect.ValueOf(val))
+
+		case Uint:
+			var val uint64
+			if len(args) > 0 {
+				val, err = strconv.ParseUint(args[0], 10, 32)
+				if err != nil {
+					// xxx
+				}
+				args = args[1:]
+			}
+			argvals = append(argvals, reflect.ValueOf(uint(val)))
+
+		case Uint64:
+			var val uint64
+			if len(args) > 0 {
+				val, err = strconv.ParseUint(args[0], 10, 64)
+				if err != nil {
+					// xxx
+				}
+				args = args[1:]
+			}
+			argvals = append(argvals, reflect.ValueOf(val))
+
+		case String:
+			var val string
+			if len(args) > 0 {
+				val = args[0]
+				args = args[1:]
+			}
+			argvals = append(argvals, reflect.ValueOf(val))
+
+		case Float64:
+			var val float64
+			if len(args) > 0 {
+				val, err = strconv.ParseFloat(args[0], 64)
+				if err != nil {
+					// xxx
+				}
+				args = args[1:]
+			}
+			argvals = append(argvals, reflect.ValueOf(val))
+
+		case Duration:
+			var val time.Duration
+			if len(args) > 0 {
+				val, err = time.ParseDuration(args[0])
+				if err != nil {
+					// xxx
+				}
+				args = args[1:]
+			}
+			argvals = append(argvals, reflect.ValueOf(val))
+
+		default:
+			// xxx
+		}
+	}
+
 	argvals = append(argvals, reflect.ValueOf(args))
 
 	return argvals, nil
@@ -314,56 +421,63 @@ func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Va
 
 // ToFlagSet produces a *flag.FlagSet from the given params,
 // plus a list of properly typed pointers in which to store the result of calling Parse on the FlagSet.
-func ToFlagSet(params []Param) (*flag.FlagSet, []reflect.Value, error) {
+func ToFlagSet(params []Param) (*flag.FlagSet, []reflect.Value, []Param, error) {
 	var (
 		fs   = flag.NewFlagSet("", flag.ContinueOnError)
 		ptrs []reflect.Value
 	)
 
-	for _, p := range params {
+	for len(params) > 0 {
+		p := params[0]
+		if !strings.HasPrefix(p.Name, "-") {
+			break
+		}
+		name := p.Name[1:]
+		params = params[1:]
+
 		var v interface{}
 
 		switch p.Type {
 		case Bool:
 			dflt, _ := p.Default.(bool)
-			v = fs.Bool(p.Name, dflt, p.Doc)
+			v = fs.Bool(name, dflt, p.Doc)
 
 		case Int:
 			dflt, _ := p.Default.(int)
-			v = fs.Int(p.Name, dflt, p.Doc)
+			v = fs.Int(name, dflt, p.Doc)
 
 		case Int64:
 			dflt, _ := p.Default.(int64)
-			v = fs.Int64(p.Name, dflt, p.Doc)
+			v = fs.Int64(name, dflt, p.Doc)
 
 		case Uint:
 			dflt, _ := p.Default.(uint)
-			v = fs.Uint(p.Name, dflt, p.Doc)
+			v = fs.Uint(name, dflt, p.Doc)
 
 		case Uint64:
 			dflt, _ := p.Default.(uint64)
-			v = fs.Uint64(p.Name, dflt, p.Doc)
+			v = fs.Uint64(name, dflt, p.Doc)
 
 		case String:
 			dflt, _ := p.Default.(string)
-			v = fs.String(p.Name, dflt, p.Doc)
+			v = fs.String(name, dflt, p.Doc)
 
 		case Float64:
 			dflt, _ := p.Default.(float64)
-			v = fs.Float64(p.Name, dflt, p.Doc)
+			v = fs.Float64(name, dflt, p.Doc)
 
 		case Duration:
 			dflt, _ := p.Default.(time.Duration)
-			v = fs.Duration(p.Name, dflt, p.Doc)
+			v = fs.Duration(name, dflt, p.Doc)
 
 		default:
-			return nil, nil, fmt.Errorf("unknown arg type %v", p.Type)
+			return nil, nil, nil, fmt.Errorf("unknown arg type %v", p.Type)
 		}
 
 		ptrs = append(ptrs, reflect.ValueOf(v))
 	}
 
-	return fs, ptrs, nil
+	return fs, ptrs, params, nil
 }
 
 // Type is the type of a Param.
@@ -428,7 +542,7 @@ func doHelp(c Cmd, subname string, args []string) error {
 			return nil
 		}
 
-		fs, _, err := ToFlagSet(sub.Params)
+		fs, _, _, err := ToFlagSet(sub.Params)
 		if err != nil {
 			return err
 		}
