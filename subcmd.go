@@ -56,52 +56,61 @@ type Subcmd struct {
 // Otherwise the result is a single line that looks like
 // "[-name string] [-spanish]"
 func (s Subcmd) Usage(long bool) (string, error) {
-	fs, _, _, err := ToFlagSet(s.Params)
+	fs, _, positional, err := ToFlagSet(s.Params)
 	if err != nil {
 		return "", err
 	}
 
-	var result []string
-
+	var summary []string
 	fs.VisitAll(func(f *flag.Flag) {
-		name, u := flag.UnquoteUsage(f)
-		if long {
-			if name == "" {
-				result = append(result, "-"+f.Name)
-			} else {
-				result = append(result, fmt.Sprintf("-%s %s", f.Name, name))
-			}
-			result = append(result, u)
+		if name, _ := flag.UnquoteUsage(f); name == "" {
+			summary = append(summary, fmt.Sprintf("[-%s]", f.Name))
 		} else {
-			if name == "" {
-				result = append(result, fmt.Sprintf("[-%s]", f.Name))
-			} else {
-				result = append(result, fmt.Sprintf("[-%s %s]", f.Name, name))
-			}
+			summary = append(summary, fmt.Sprintf("[-%s %s]", f.Name, name))
 		}
 	})
-
-	if long {
-		var maxlen int
-		for i := 0; i < len(result); i += 2 {
-			if len(result[i]) > maxlen {
-				maxlen = len(result[i])
-			}
+	for _, p := range positional {
+		name := p.Name
+		if strings.HasSuffix(name, "?") {
+			name = fmt.Sprintf("[%s]", name[:len(name)-1])
 		}
-
-		var (
-			format = fmt.Sprintf("%%-%d.%ds  %%s\n", maxlen, maxlen)
-			b      = new(strings.Builder)
-		)
-
-		fmt.Fprintln(b, s.Desc)
-		for i := 0; i < len(result); i += 2 {
-			fmt.Fprintf(b, format, result[i], result[i+1])
-		}
-		return b.String(), nil
+		summary = append(summary, name)
 	}
 
-	return strings.Join(result, " "), nil
+	summaryStr := strings.Join(summary, " ")
+	if !long {
+		return summaryStr, nil
+	}
+
+	var (
+		detail []string
+		maxlen int
+	)
+	fs.VisitAll(func(f *flag.Flag) {
+		name, u := flag.UnquoteUsage(f)
+		var n string
+		if name == "" {
+			n = "-" + f.Name
+		} else {
+			n = fmt.Sprintf("-%s %s", f.Name, name)
+		}
+		detail = append(detail, n)
+		if len(n) > maxlen {
+			maxlen = len(n)
+		}
+		detail = append(detail, u)
+	})
+
+	var (
+		format = fmt.Sprintf("%%-%d.%ds  %%s\n", maxlen, maxlen)
+		b      = new(strings.Builder)
+	)
+
+	fmt.Fprintln(b, s.Desc)
+	for i := 0; i < len(detail); i += 2 {
+		fmt.Fprintf(b, format, detail[i], detail[i+1])
+	}
+	return b.String(), nil // xxx
 }
 
 // Param is one parameter of a Subcmd.
@@ -225,14 +234,6 @@ func Params(a ...interface{}) []Param {
 	return result
 }
 
-var (
-	// ErrNoArgs is the error when Run is called with an empty list of args.
-	ErrNoArgs = errors.New("no arguments")
-
-	// ErrUnknown is the error when Run is called with an unknown subcommand as args[0].
-	ErrUnknown = errors.New("unknown subcommand")
-)
-
 // Run runs the subcommand of c named in args[0].
 // The remaining args are parsed with a new flag.FlagSet,
 // populated according to the parameters of the named Subcmd.
@@ -256,6 +257,8 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 	if !ok {
 		return doHelp(c, name, args)
 	}
+
+	ctx = addSubcmdPair(ctx, name, subcmd)
 
 	argvals, err := parseArgs(ctx, subcmd.Params, args)
 	if err != nil {
@@ -311,7 +314,7 @@ func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Va
 	}
 
 	args = fs.Args()
-	ctx = context.WithValue(ctx, fskey, fs)
+	ctx = withFlagSet(ctx, fs)
 
 	argvals := []reflect.Value{reflect.ValueOf(ctx)}
 	for _, ptr := range ptrs {
@@ -320,7 +323,7 @@ func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Va
 
 	for _, p := range positional {
 		if len(args) == 0 && !strings.HasSuffix(p.Name, "?") {
-			// xxx error
+			return nil, ErrTooFewArgs
 		}
 
 		switch p.Type {
@@ -329,7 +332,7 @@ func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Va
 			if len(args) > 0 {
 				val, err = strconv.ParseBool(args[0])
 				if err != nil {
-					// xxx
+					return nil, ParseErr{Err: err}
 				}
 				args = args[1:]
 			}
@@ -340,7 +343,7 @@ func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Va
 			if len(args) > 0 {
 				val, err = strconv.ParseInt(args[0], 10, 32)
 				if err != nil {
-					// xxx
+					return nil, ParseErr{Err: err}
 				}
 				args = args[1:]
 			}
@@ -351,7 +354,7 @@ func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Va
 			if len(args) > 0 {
 				val, err = strconv.ParseInt(args[0], 10, 64)
 				if err != nil {
-					// xxx
+					return nil, ParseErr{Err: err}
 				}
 				args = args[1:]
 			}
@@ -362,7 +365,7 @@ func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Va
 			if len(args) > 0 {
 				val, err = strconv.ParseUint(args[0], 10, 32)
 				if err != nil {
-					// xxx
+					return nil, ParseErr{Err: err}
 				}
 				args = args[1:]
 			}
@@ -373,7 +376,7 @@ func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Va
 			if len(args) > 0 {
 				val, err = strconv.ParseUint(args[0], 10, 64)
 				if err != nil {
-					// xxx
+					return nil, ParseErr{Err: err}
 				}
 				args = args[1:]
 			}
@@ -392,7 +395,7 @@ func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Va
 			if len(args) > 0 {
 				val, err = strconv.ParseFloat(args[0], 64)
 				if err != nil {
-					// xxx
+					return nil, ParseErr{Err: err}
 				}
 				args = args[1:]
 			}
@@ -403,14 +406,14 @@ func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Va
 			if len(args) > 0 {
 				val, err = time.ParseDuration(args[0])
 				if err != nil {
-					// xxx
+					return nil, ParseErr{Err: err}
 				}
 				args = args[1:]
 			}
 			argvals = append(argvals, reflect.ValueOf(val))
 
 		default:
-			// xxx
+			return nil, fmt.Errorf("unknown arg type %v", p.Type)
 		}
 	}
 
@@ -496,16 +499,6 @@ const (
 	Duration
 )
 
-type fskeytype struct{}
-
-var fskey fskeytype
-
-// FlagSet produces the *flag.FlagSet used in a call to a Subcmd function.
-func FlagSet(ctx context.Context) *flag.FlagSet {
-	val := ctx.Value(fskey)
-	return val.(*flag.FlagSet)
-}
-
 // Called when an unknown subcommand is specified,
 // or no subcommand is given.
 func doHelp(c Cmd, subname string, args []string) error {
@@ -567,17 +560,4 @@ func doHelp(c Cmd, subname string, args []string) error {
 	}
 
 	return nil
-}
-
-type UsageErr struct {
-	names    []string
-	defaults string
-}
-
-func (e *UsageErr) Error() string {
-	names := make([]string, len(e.names))
-	for i := 0; i < len(e.names); i++ {
-		names[i] = e.names[len(e.names)-1-i]
-	}
-	return fmt.Sprintf("usage: %s [flags] ...\n%s", strings.Join(names, " "), e.defaults)
 }

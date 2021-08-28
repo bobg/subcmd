@@ -141,14 +141,14 @@ type command struct {
 func (c command) Subcmds() Map {
 	return Commands(
 		"x", c.xcmd, "x", Params(
-			"boolopt", Bool, false, "bool",
-			"intopt", Int, 0, "int",
-			"int64opt", Int64, 0, "int64",
-			"uintopt", Uint, 0, "uint",
-			"uint64opt", Uint64, 0, "uint64",
-			"stropt", String, "", "str",
-			"float64opt", Float64, 0, "float64",
-			"duropt", Duration, 0, "dur",
+			"-boolopt", Bool, false, "bool",
+			"-intopt", Int, 0, "int",
+			"-int64opt", Int64, 0, "int64",
+			"-uintopt", Uint, 0, "uint",
+			"-uint64opt", Uint64, 0, "uint64",
+			"-stropt", String, "", "str",
+			"-float64opt", Float64, 0, "float64",
+			"-duropt", Duration, 0, "dur",
 		),
 		"y", c.ycmd, "y", nil,
 	)
