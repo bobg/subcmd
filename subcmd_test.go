@@ -211,9 +211,9 @@ type command struct {
 	durpos     time.Duration
 }
 
-func (c command) Subcmds() Map {
+func (cmd command) Subcmds() Map {
 	return Commands(
-		"x", c.xcmd, "x", Params(
+		"x", cmd.xcmd, "x", Params(
 			"-boolopt", Bool, false, "bool flag",
 			"-intopt", Int, 0, "int flag",
 			"-int64opt", Int64, 0, "int64 flag",
@@ -231,11 +231,11 @@ func (c command) Subcmds() Map {
 			"float64pos", Float64, 0, "float64 pos",
 			"durpos", Duration, 0, "dur pos",
 		),
-		"y", c.ycmd, "y", nil,
+		"y", cmd.ycmd, "y", nil,
 	)
 }
 
-func (c command) xcmd(
+func (cmd command) xcmd(
 	_ context.Context,
 	boolopt bool,
 	intopt int,
@@ -255,53 +255,53 @@ func (c command) xcmd(
 	durpos time.Duration,
 	_ []string,
 ) error {
-	if boolopt != c.boolopt {
-		c.t.Errorf("boolopt: got %v, want %v", boolopt, c.boolopt)
+	if boolopt != cmd.boolopt {
+		cmd.t.Errorf("boolopt: got %v, want %v", boolopt, cmd.boolopt)
 	}
-	if intopt != c.intopt {
-		c.t.Errorf("intopt: got %d, want %d", intopt, c.intopt)
+	if intopt != cmd.intopt {
+		cmd.t.Errorf("intopt: got %d, want %d", intopt, cmd.intopt)
 	}
-	if int64opt != c.int64opt {
-		c.t.Errorf("int64opt: got %d, want %d", int64opt, c.int64opt)
+	if int64opt != cmd.int64opt {
+		cmd.t.Errorf("int64opt: got %d, want %d", int64opt, cmd.int64opt)
 	}
-	if uintopt != c.uintopt {
-		c.t.Errorf("uintopt: got %d, want %d", uintopt, c.uintopt)
+	if uintopt != cmd.uintopt {
+		cmd.t.Errorf("uintopt: got %d, want %d", uintopt, cmd.uintopt)
 	}
-	if uint64opt != c.uint64opt {
-		c.t.Errorf("uint64opt: got %d, want %d", uint64opt, c.uint64opt)
+	if uint64opt != cmd.uint64opt {
+		cmd.t.Errorf("uint64opt: got %d, want %d", uint64opt, cmd.uint64opt)
 	}
-	if stropt != c.stropt {
-		c.t.Errorf(`stropt: got "%s", want "%s"`, stropt, c.stropt)
+	if stropt != cmd.stropt {
+		cmd.t.Errorf(`stropt: got "%s", want "%s"`, stropt, cmd.stropt)
 	}
-	if float64opt != c.float64opt {
-		c.t.Errorf("float64opt: got %f, want %f", float64opt, c.float64opt)
+	if float64opt != cmd.float64opt {
+		cmd.t.Errorf("float64opt: got %f, want %f", float64opt, cmd.float64opt)
 	}
-	if duropt != c.duropt {
-		c.t.Errorf("duropt: got %s, want %s", duropt, c.duropt)
+	if duropt != cmd.duropt {
+		cmd.t.Errorf("duropt: got %s, want %s", duropt, cmd.duropt)
 	}
-	if boolpos != c.boolpos {
-		c.t.Errorf("boolpos: got %v, want %v", boolpos, c.boolpos)
+	if boolpos != cmd.boolpos {
+		cmd.t.Errorf("boolpos: got %v, want %v", boolpos, cmd.boolpos)
 	}
-	if intpos != c.intpos {
-		c.t.Errorf("intpos: got %d, want %d", intpos, c.intpos)
+	if intpos != cmd.intpos {
+		cmd.t.Errorf("intpos: got %d, want %d", intpos, cmd.intpos)
 	}
-	if int64pos != c.int64pos {
-		c.t.Errorf("int64pos: got %d, want %d", int64pos, c.int64pos)
+	if int64pos != cmd.int64pos {
+		cmd.t.Errorf("int64pos: got %d, want %d", int64pos, cmd.int64pos)
 	}
-	if uintpos != c.uintpos {
-		c.t.Errorf("uintpos: got %d, want %d", uintpos, c.uintpos)
+	if uintpos != cmd.uintpos {
+		cmd.t.Errorf("uintpos: got %d, want %d", uintpos, cmd.uintpos)
 	}
-	if uint64pos != c.uint64pos {
-		c.t.Errorf("uint64pos: got %d, want %d", uint64pos, c.uint64pos)
+	if uint64pos != cmd.uint64pos {
+		cmd.t.Errorf("uint64pos: got %d, want %d", uint64pos, cmd.uint64pos)
 	}
-	if strpos != c.strpos {
-		c.t.Errorf(`strpos: got "%s", want "%s"`, strpos, c.strpos)
+	if strpos != cmd.strpos {
+		cmd.t.Errorf(`strpos: got "%s", want "%s"`, strpos, cmd.strpos)
 	}
-	if float64pos != c.float64pos {
-		c.t.Errorf("float64pos: got %f, want %f", float64pos, c.float64pos)
+	if float64pos != cmd.float64pos {
+		cmd.t.Errorf("float64pos: got %f, want %f", float64pos, cmd.float64pos)
 	}
-	if durpos != c.durpos {
-		c.t.Errorf("durpos: got %s, want %s", durpos, c.durpos)
+	if durpos != cmd.durpos {
+		cmd.t.Errorf("durpos: got %s, want %s", durpos, cmd.durpos)
 	}
 	return nil
 }

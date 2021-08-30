@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -255,126 +254,6 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 	}
 
 	return errors.Wrapf(err, "running %s", name)
-}
-
-func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Value, error) {
-	fs, ptrs, positional, err := ToFlagSet(params)
-	if err != nil {
-		return nil, err
-	}
-
-	err = fs.Parse(args)
-	if err != nil {
-		return nil, errors.Wrap(err, "parsing args")
-	}
-
-	args = fs.Args()
-	ctx = withFlagSet(ctx, fs)
-
-	argvals := []reflect.Value{reflect.ValueOf(ctx)}
-	for _, ptr := range ptrs {
-		argvals = append(argvals, ptr.Elem())
-	}
-
-	for _, p := range positional {
-		if len(args) == 0 && !strings.HasSuffix(p.Name, "?") {
-			return nil, ErrTooFewArgs
-		}
-
-		switch p.Type {
-		case Bool:
-			var val bool
-			if len(args) > 0 {
-				val, err = strconv.ParseBool(args[0])
-				if err != nil {
-					return nil, ParseErr{Err: err}
-				}
-				args = args[1:]
-			}
-			argvals = append(argvals, reflect.ValueOf(val))
-
-		case Int:
-			var val int64
-			if len(args) > 0 {
-				val, err = strconv.ParseInt(args[0], 10, 32)
-				if err != nil {
-					return nil, ParseErr{Err: err}
-				}
-				args = args[1:]
-			}
-			argvals = append(argvals, reflect.ValueOf(int(val)))
-
-		case Int64:
-			var val int64
-			if len(args) > 0 {
-				val, err = strconv.ParseInt(args[0], 10, 64)
-				if err != nil {
-					return nil, ParseErr{Err: err}
-				}
-				args = args[1:]
-			}
-			argvals = append(argvals, reflect.ValueOf(val))
-
-		case Uint:
-			var val uint64
-			if len(args) > 0 {
-				val, err = strconv.ParseUint(args[0], 10, 32)
-				if err != nil {
-					return nil, ParseErr{Err: err}
-				}
-				args = args[1:]
-			}
-			argvals = append(argvals, reflect.ValueOf(uint(val)))
-
-		case Uint64:
-			var val uint64
-			if len(args) > 0 {
-				val, err = strconv.ParseUint(args[0], 10, 64)
-				if err != nil {
-					return nil, ParseErr{Err: err}
-				}
-				args = args[1:]
-			}
-			argvals = append(argvals, reflect.ValueOf(val))
-
-		case String:
-			var val string
-			if len(args) > 0 {
-				val = args[0]
-				args = args[1:]
-			}
-			argvals = append(argvals, reflect.ValueOf(val))
-
-		case Float64:
-			var val float64
-			if len(args) > 0 {
-				val, err = strconv.ParseFloat(args[0], 64)
-				if err != nil {
-					return nil, ParseErr{Err: err}
-				}
-				args = args[1:]
-			}
-			argvals = append(argvals, reflect.ValueOf(val))
-
-		case Duration:
-			var val time.Duration
-			if len(args) > 0 {
-				val, err = time.ParseDuration(args[0])
-				if err != nil {
-					return nil, ParseErr{Err: err}
-				}
-				args = args[1:]
-			}
-			argvals = append(argvals, reflect.ValueOf(val))
-
-		default:
-			return nil, fmt.Errorf("unknown arg type %v", p.Type)
-		}
-	}
-
-	argvals = append(argvals, reflect.ValueOf(args))
-
-	return argvals, nil
 }
 
 // ToFlagSet produces a *flag.FlagSet from the given params,

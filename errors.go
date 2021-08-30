@@ -19,6 +19,7 @@ var (
 	ErrTooFewArgs = errors.New("too few arguments")
 )
 
+// ParseErr is the type of error returned when parsing a positional parameter according to its type fails.
 type ParseErr struct {
 	Err error
 }
@@ -27,14 +28,19 @@ func (e ParseErr) Error() string {
 	return "parse error: " + e.Err.Error()
 }
 
+// Unwrap unwraps the nested error in e.
 func (e ParseErr) Unwrap() error {
 	return e.Err
 }
 
+// Usage is the type of errors that give usage information.
+// Such errors have the usual Error() method producing a one-line string,
+// but also a Long() method producing a multiline string with more detail.
 type Usage interface {
 	Long() string
 }
 
+// MissingSubcmdErr is a usage error returned when Run is called with an empty `args` list.
 type MissingSubcmdErr struct {
 	pairs []subcmdPair
 	cmd   Cmd
@@ -44,10 +50,12 @@ func (e *MissingSubcmdErr) Error() string {
 	return fmt.Sprintf("missing subcommand, want one of: %s", strings.Join(subcmdNames(e.cmd), "; "))
 }
 
+// Long implements Usage.
 func (e *MissingSubcmdErr) Long() string {
 	return missingUnknownSubcmd("Missing subcommand, want one of:", e.cmd)
 }
 
+// HelpRequestedErr is a usage error returned when the "help" pseudo-subcommand-name is used.
 type HelpRequestedErr struct {
 	pairs []subcmdPair
 	cmd   Cmd
@@ -97,6 +105,7 @@ func (e *HelpRequestedErr) Error() string {
 	return fmt.Sprintf("subcommands are: %s", strings.Join(subcmdNames(e.cmd), "; "))
 }
 
+// Long implements Usage.
 func (e *HelpRequestedErr) Long() string {
 	if e.name != "" {
 		// foo bar help baz
@@ -179,6 +188,7 @@ func (e *HelpRequestedErr) Long() string {
 	return b.String()
 }
 
+// UnknownSubcmdErr is a usage error returned when an unknown subcommand name is passed to Run.
 type UnknownSubcmdErr struct {
 	pairs []subcmdPair
 	cmd   Cmd
@@ -189,6 +199,7 @@ func (e *UnknownSubcmdErr) Error() string {
 	return fmt.Sprintf(`unknown subcommand "%s", want one of: %s`, e.name, strings.Join(subcmdNames(e.cmd), "; "))
 }
 
+// Long implements Usage.
 func (e *UnknownSubcmdErr) Long() string {
 	return missingUnknownSubcmd(fmt.Sprintf(`Unknown subcommand "%s", want one of:`, e.name), e.cmd)
 }
