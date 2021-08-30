@@ -5,7 +5,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"reflect"
 	"sort"
 	"strconv"
@@ -29,6 +28,16 @@ type Cmd interface {
 // It maps a subcommand name to its Subcmd structure.
 type Map = map[string]Subcmd
 
+// Returns c's subcommand names as a sorted slice.
+func subcmdNames(c Cmd) []string {
+	var result []string
+	for cmdname := range c.Subcmds() {
+		result = append(result, cmdname)
+	}
+	sort.Strings(result)
+	return result
+}
+
 // Subcmd is one subcommand of a Cmd.
 type Subcmd struct {
 	// F is the function implementing the subcommand.
@@ -46,77 +55,12 @@ type Subcmd struct {
 	Desc string
 }
 
-// Usage produces a usage string for s in approximately the style of flag.PrintDefaults.
-// If `long` is true,
-// the result is a multiline string whose first line is s.Desc
-// and whose remaining lines,
-// one per parameter,
-// is the description of that parameter
-// (like "-name string  Name to greet").
-// Otherwise the result is a single line that looks like
-// "[-name string] [-spanish]"
-func (s Subcmd) Usage(long bool) (string, error) {
-	fs, _, positional, err := ToFlagSet(s.Params)
-	if err != nil {
-		return "", err
-	}
-
-	var summary []string
-	fs.VisitAll(func(f *flag.Flag) {
-		if name, _ := flag.UnquoteUsage(f); name == "" {
-			summary = append(summary, fmt.Sprintf("[-%s]", f.Name))
-		} else {
-			summary = append(summary, fmt.Sprintf("[-%s %s]", f.Name, name))
-		}
-	})
-	for _, p := range positional {
-		name := p.Name
-		if strings.HasSuffix(name, "?") {
-			name = fmt.Sprintf("[%s]", name[:len(name)-1])
-		}
-		summary = append(summary, name)
-	}
-
-	summaryStr := strings.Join(summary, " ")
-	if !long {
-		return summaryStr, nil
-	}
-
-	var (
-		detail []string
-		maxlen int
-	)
-	fs.VisitAll(func(f *flag.Flag) {
-		name, u := flag.UnquoteUsage(f)
-		var n string
-		if name == "" {
-			n = "-" + f.Name
-		} else {
-			n = fmt.Sprintf("-%s %s", f.Name, name)
-		}
-		detail = append(detail, n)
-		if len(n) > maxlen {
-			maxlen = len(n)
-		}
-		detail = append(detail, u)
-	})
-
-	var (
-		format = fmt.Sprintf("%%-%d.%ds  %%s\n", maxlen, maxlen)
-		b      = new(strings.Builder)
-	)
-
-	fmt.Fprintln(b, s.Desc)
-	for i := 0; i < len(detail); i += 2 {
-		fmt.Fprintf(b, format, detail[i], detail[i+1])
-	}
-	return b.String(), nil // xxx
-}
-
 // Param is one parameter of a Subcmd.
 type Param struct {
 	// Name is the flag name for the parameter
-	// (e.g., "verbose" for a -verbose flag).
+	// (e.g., "-verbose" for a -verbose flag,
+	// "filename" for a positional parameter,
+	// "optional?" for an optional positional parameter).
 	Name string
 
 	// Type is the type of the parameter.
@@ -244,18 +188,35 @@ func Params(a ...interface{}) []Param {
 // and can be retrieved if needed with the FlagSet function.
 // No FlagSet is present if the subcommand takes no parameters.
 func Run(ctx context.Context, c Cmd, args []string) error {
-	cmds := c.Subcmds()
-
 	if len(args) == 0 {
-		return doHelp(c, "", nil)
+		return &MissingSubcmdErr{
+			pairs: subcmdPairList(ctx),
+			cmd:   c,
+		}
 	}
+
+	cmds := c.Subcmds()
 
 	name := args[0]
 	args = args[1:]
 	subcmd, ok := cmds[name]
 
+	if !ok && name == "help" {
+		e := &HelpRequestedErr{
+			pairs: subcmdPairList(ctx),
+			cmd:   c,
+		}
+		if len(args) > 0 {
+			e.name = args[0]
+		}
+		return e
+	}
 	if !ok {
-		return doHelp(c, name, args)
+		return &UnknownSubcmdErr{
+			pairs: subcmdPairList(ctx),
+			cmd:   c,
+			name:  name,
+		}
 	}
 
 	ctx = addSubcmdPair(ctx, name, subcmd)
@@ -291,12 +252,6 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 
 	if numOut == 1 {
 		err, _ = rv[0].Interface().(error)
-	}
-
-	var usageErr *UsageErr
-	if errors.As(err, &usageErr) {
-		usageErr.names = append(usageErr.names, name)
-		return usageErr
 	}
 
 	return errors.Wrapf(err, "running %s", name)
@@ -498,66 +453,3 @@ const (
 	Float64
 	Duration
 )
-
-// Called when an unknown subcommand is specified,
-// or no subcommand is given.
-func doHelp(c Cmd, subname string, args []string) error {
-	cmds := c.Subcmds()
-
-	var maxlen int
-
-	var cmdnames sort.StringSlice
-	for cmdname := range cmds {
-		cmdnames = append(cmdnames, cmdname)
-		if len(cmdname) > maxlen {
-			maxlen = len(cmdname)
-		}
-	}
-	cmdnames.Sort()
-
-	format := fmt.Sprintf("  %%-%d.%ds  %%s\n", maxlen, maxlen)
-
-	if subname == "" {
-		fmt.Fprint(os.Stderr, "Subcommand expected, one of:\n\n")
-		for _, cmdname := range cmdnames {
-			fmt.Fprintf(os.Stderr, format, cmdname, cmds[cmdname].Desc)
-		}
-		return nil
-	}
-
-	if subname == "help" && len(args) > 0 {
-		sub, ok := cmds[args[0]]
-		if !ok {
-			fmt.Fprintf(os.Stderr, "Unrecognized subcommand \"%s\", want one of:\n\n", subname)
-			for _, cmdname := range cmdnames {
-				fmt.Fprintf(os.Stderr, format, cmdname, cmds[cmdname].Desc)
-			}
-			return nil
-		}
-
-		fs, _, _, err := ToFlagSet(sub.Params)
-		if err != nil {
-			return err
-		}
-
-		b := new(strings.Builder)
-		fs.SetOutput(b)
-		fs.PrintDefaults()
-		return &UsageErr{names: []string{args[0]}, defaults: b.String()}
-	}
-
-	if subname == "help" {
-		fmt.Fprint(os.Stderr, "Subcommands:\n\n")
-		for _, cmdname := range cmdnames {
-			fmt.Fprintf(os.Stderr, format, cmdname, cmds[cmdname].Desc)
-		}
-		return nil
-	}
-
-	fmt.Fprintf(os.Stderr, "Unrecognized subcommand \"%s\", want one of:\n\n", subname)
-	for _, cmdname := range cmdnames {
-		fmt.Fprintf(os.Stderr, format, cmdname, cmds[cmdname].Desc)
-	}
-
-	return nil
-}

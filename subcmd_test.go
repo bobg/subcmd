@@ -243,39 +243,3 @@ var (
 	fooopt = cmp.FilterValues(foocomparer, cmp.Comparer(foocomparer))
 	baropt = cmp.FilterValues(barcomparer, cmp.Comparer(barcomparer))
 )
-
-func TestUsage(t *testing.T) {
-	c := command{}.Subcmds()["x"]
-
-	t.Run("long", func(t *testing.T) {
-		const want = `x
--boolopt           bool
--duropt duration   dur
--float64opt float  float64
--int64opt int      int64
--intopt int        int
--stropt string     str
--uint64opt uint    uint64
--uintopt uint      uint
-`
-
-		got, err := c.Usage(true)
-		if err != nil {
-			t.Fatal()
-		}
-		if diff := cmp.Diff(want, got); diff != "" {
-			t.Errorf("mismatch (-want +got):\n%s", diff)
-		}
-	})
-
-	t.Run("short", func(t *testing.T) {
-		got, err := c.Usage(false)
-		if err != nil {
-			t.Fatal()
-		}
-		const want = "[-boolopt] [-duropt duration] [-float64opt float] [-int64opt int] [-intopt int] [-stropt string] [-uint64opt uint] [-uintopt uint]"
-		if got != want {
-			t.Errorf(`got "%s", want "%s"`, got, want)
-		}
-	})
-}
