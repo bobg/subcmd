@@ -49,36 +49,36 @@ func parsePositionalArg(p Param, args *[]string, argvals *[]reflect.Value) error
 
 	switch p.Type {
 	case Bool:
-		return parseBoolPos(args, argvals)
+		return parseBoolPos(args, argvals, p)
 
 	case Int:
-		return parseIntPos(args, argvals)
+		return parseIntPos(args, argvals, p)
 
 	case Int64:
-		return parseInt64Pos(args, argvals)
+		return parseInt64Pos(args, argvals, p)
 
 	case Uint:
-		return parseUintPos(args, argvals)
+		return parseUintPos(args, argvals, p)
 
 	case Uint64:
-		return parseUint64Pos(args, argvals)
+		return parseUint64Pos(args, argvals, p)
 
 	case String:
-		return parseStringPos(args, argvals)
+		return parseStringPos(args, argvals, p)
 
 	case Float64:
-		return parseFloat64Pos(args, argvals)
+		return parseFloat64Pos(args, argvals, p)
 
 	case Duration:
-		return parseDurationPos(args, argvals)
+		return parseDurationPos(args, argvals, p)
 
 	default:
 		return fmt.Errorf("unknown arg type %v", p.Type)
 	}
 }
 
-func parseBoolPos(args *[]string, argvals *[]reflect.Value) error {
-	var val bool
+func parseBoolPos(args *[]string, argvals *[]reflect.Value, p Param) error {
+	val, _ := p.Default.(bool)
 	if len(*args) > 0 {
 		var err error
 		val, err = strconv.ParseBool((*args)[0])
@@ -91,8 +91,14 @@ func parseBoolPos(args *[]string, argvals *[]reflect.Value) error {
 	return nil
 }
 
-func parseIntPos(args *[]string, argvals *[]reflect.Value) error {
+func parseIntPos(args *[]string, argvals *[]reflect.Value, p Param) error {
 	var val int64
+	if dflt, ok := p.Default.(int); ok {
+		val = int64(dflt)
+	} else if dflt, ok := p.Default.(int64); ok {
+		val = dflt
+	}
+
 	if len(*args) > 0 {
 		var err error
 		val, err = strconv.ParseInt((*args)[0], 10, 32)
@@ -105,8 +111,14 @@ func parseIntPos(args *[]string, argvals *[]reflect.Value) error {
 	return nil
 }
 
-func parseInt64Pos(args *[]string, argvals *[]reflect.Value) error {
+func parseInt64Pos(args *[]string, argvals *[]reflect.Value, p Param) error {
 	var val int64
+	if dflt, ok := p.Default.(int); ok {
+		val = int64(dflt)
+	} else if dflt, ok := p.Default.(int64); ok {
+		val = dflt
+	}
+
 	if len(*args) > 0 {
 		var err error
 		val, err = strconv.ParseInt((*args)[0], 10, 64)
@@ -119,8 +131,14 @@ func parseInt64Pos(args *[]string, argvals *[]reflect.Value) error {
 	return nil
 }
 
-func parseUintPos(args *[]string, argvals *[]reflect.Value) error {
+func parseUintPos(args *[]string, argvals *[]reflect.Value, p Param) error {
 	var val uint64
+	if dflt, ok := p.Default.(uint); ok {
+		val = uint64(dflt)
+	} else if dflt, ok := p.Default.(uint64); ok {
+		val = dflt
+	}
+
 	if len(*args) > 0 {
 		var err error
 		val, err = strconv.ParseUint((*args)[0], 10, 32)
@@ -133,8 +151,14 @@ func parseUintPos(args *[]string, argvals *[]reflect.Value) error {
 	return nil
 }
 
-func parseUint64Pos(args *[]string, argvals *[]reflect.Value) error {
+func parseUint64Pos(args *[]string, argvals *[]reflect.Value, p Param) error {
 	var val uint64
+	if dflt, ok := p.Default.(uint); ok {
+		val = uint64(dflt)
+	} else if dflt, ok := p.Default.(uint64); ok {
+		val = dflt
+	}
+
 	if len(*args) > 0 {
 		var err error
 		val, err = strconv.ParseUint((*args)[0], 10, 64)
@@ -147,8 +171,8 @@ func parseUint64Pos(args *[]string, argvals *[]reflect.Value) error {
 	return nil
 }
 
-func parseStringPos(args *[]string, argvals *[]reflect.Value) error {
-	var val string
+func parseStringPos(args *[]string, argvals *[]reflect.Value, p Param) error {
+	val, _ := p.Default.(string)
 	if len(*args) > 0 {
 		val = (*args)[0]
 		*args = (*args)[1:]
@@ -157,8 +181,23 @@ func parseStringPos(args *[]string, argvals *[]reflect.Value) error {
 	return nil
 }
 
-func parseFloat64Pos(args *[]string, argvals *[]reflect.Value) error {
+func parseFloat64Pos(args *[]string, argvals *[]reflect.Value, p Param) error {
 	var val float64
+	switch dflt := p.Default.(type) {
+	case int:
+		val = float64(dflt)
+	case int64:
+		val = float64(dflt)
+	case uint:
+		val = float64(dflt)
+	case uint64:
+		val = float64(dflt)
+	case float32:
+		val = float64(dflt)
+	case float64:
+		val = dflt
+	}
+
 	if len(*args) > 0 {
 		var err error
 		val, err = strconv.ParseFloat((*args)[0], 64)
@@ -171,8 +210,17 @@ func parseFloat64Pos(args *[]string, argvals *[]reflect.Value) error {
 	return nil
 }
 
-func parseDurationPos(args *[]string, argvals *[]reflect.Value) error {
+func parseDurationPos(args *[]string, argvals *[]reflect.Value, p Param) error {
 	var val time.Duration
+	switch dflt := p.Default.(type) {
+	case int:
+		val = time.Duration(dflt)
+	case int64:
+		val = time.Duration(dflt)
+	case time.Duration:
+		val = dflt
+	}
+
 	if len(*args) > 0 {
 		var err error
 		val, err = time.ParseDuration((*args)[0])

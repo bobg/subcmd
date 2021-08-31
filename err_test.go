@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -160,7 +161,7 @@ func (errtestcmd) Subcmds() Map {
 			"-a1", Bool, false, "the a1 flag",
 			"-a2", Int, 0, "the a2 flag",
 			"-a3", String, "", "a `word` flag",
-			"a4", Duration, 0, "positional duration",
+			"a4", Duration, time.Duration(0), "positional duration",
 			"a5?", Bool, false, "optional positional bool",
 		),
 		"bb", errtestB, "Do b", nil,

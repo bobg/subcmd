@@ -11,9 +11,29 @@ import (
 )
 
 func TestNoArgs(t *testing.T) {
-	err := Run(context.Background(), command{}, []string{"y"})
+	err := Run(context.Background(), &command{}, []string{"y"})
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestOptionalArg(t *testing.T) {
+	cmd := new(command)
+
+	err := Run(context.Background(), cmd, []string{"z"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cmd.zgotopt != 7 {
+		t.Errorf("got %d, want 7", cmd.zgotopt)
+	}
+
+	err = Run(context.Background(), cmd, []string{"z", "17"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cmd.zgotopt != 17 {
+		t.Errorf("got %d, want 17", cmd.zgotopt)
 	}
 }
 
@@ -26,7 +46,7 @@ func TestRun(t *testing.T) {
 	cmd.boolflagtest(ctx, t, args)
 }
 
-func (cmd command) boolflagtest(ctx context.Context, t *testing.T, args []string) {
+func (cmd *command) boolflagtest(ctx context.Context, t *testing.T, args []string) {
 	for _, boolopt := range []bool{false, true} {
 		cmd.boolopt = boolopt
 		t.Run(fmt.Sprintf("bool_%v", boolopt), func(t *testing.T) {
@@ -38,7 +58,7 @@ func (cmd command) boolflagtest(ctx context.Context, t *testing.T, args []string
 	}
 }
 
-func (cmd command) intflagtest(ctx context.Context, t *testing.T, args []string) {
+func (cmd *command) intflagtest(ctx context.Context, t *testing.T, args []string) {
 	for _, intopt := range []int{0, 1} {
 		cmd.intopt = intopt
 		t.Run(fmt.Sprintf("int_%d", intopt), func(t *testing.T) {
@@ -50,7 +70,7 @@ func (cmd command) intflagtest(ctx context.Context, t *testing.T, args []string)
 	}
 }
 
-func (cmd command) int64flagtest(ctx context.Context, t *testing.T, args []string) {
+func (cmd *command) int64flagtest(ctx context.Context, t *testing.T, args []string) {
 	for _, int64opt := range []int64{0, 2} {
 		cmd.int64opt = int64opt
 		t.Run(fmt.Sprintf("int64_%d", int64opt), func(t *testing.T) {
@@ -62,7 +82,7 @@ func (cmd command) int64flagtest(ctx context.Context, t *testing.T, args []strin
 	}
 }
 
-func (cmd command) uintflagtest(ctx context.Context, t *testing.T, args []string) {
+func (cmd *command) uintflagtest(ctx context.Context, t *testing.T, args []string) {
 	for _, uintopt := range []uint{0, 3} {
 		cmd.uintopt = uintopt
 		t.Run(fmt.Sprintf("uint_%d", uintopt), func(t *testing.T) {
@@ -74,7 +94,7 @@ func (cmd command) uintflagtest(ctx context.Context, t *testing.T, args []string
 	}
 }
 
-func (cmd command) uint64flagtest(ctx context.Context, t *testing.T, args []string) {
+func (cmd *command) uint64flagtest(ctx context.Context, t *testing.T, args []string) {
 	for _, uint64opt := range []uint64{0, 4} {
 		cmd.uint64opt = uint64opt
 		t.Run(fmt.Sprintf("uint64_%d", uint64opt), func(t *testing.T) {
@@ -86,7 +106,7 @@ func (cmd command) uint64flagtest(ctx context.Context, t *testing.T, args []stri
 	}
 }
 
-func (cmd command) strflagtest(ctx context.Context, t *testing.T, args []string) {
+func (cmd *command) strflagtest(ctx context.Context, t *testing.T, args []string) {
 	for _, stropt := range []string{"", "foo"} {
 		cmd.stropt = stropt
 		t.Run(fmt.Sprintf("str%s", stropt), func(t *testing.T) {
@@ -98,7 +118,7 @@ func (cmd command) strflagtest(ctx context.Context, t *testing.T, args []string)
 	}
 }
 
-func (cmd command) float64flagtest(ctx context.Context, t *testing.T, args []string) {
+func (cmd *command) float64flagtest(ctx context.Context, t *testing.T, args []string) {
 	for _, float64opt := range []float64{0, 3.14} {
 		cmd.float64opt = float64opt
 		t.Run(fmt.Sprintf("float%f", float64opt), func(t *testing.T) {
@@ -110,7 +130,7 @@ func (cmd command) float64flagtest(ctx context.Context, t *testing.T, args []str
 	}
 }
 
-func (cmd command) durflagtest(ctx context.Context, t *testing.T, args []string) {
+func (cmd *command) durflagtest(ctx context.Context, t *testing.T, args []string) {
 	for _, duropt := range []time.Duration{0, time.Minute} {
 		cmd.duropt = duropt
 		t.Run(fmt.Sprintf("dur%s", duropt), func(t *testing.T) {
@@ -122,7 +142,7 @@ func (cmd command) durflagtest(ctx context.Context, t *testing.T, args []string)
 	}
 }
 
-func (cmd command) boolpostest(ctx context.Context, t *testing.T, args []string) {
+func (cmd *command) boolpostest(ctx context.Context, t *testing.T, args []string) {
 	cmd.boolpos = true
 	t.Run(fmt.Sprintf("boolpos_%v", cmd.boolpos), func(t *testing.T) {
 		args = append(args, "true")
@@ -130,7 +150,7 @@ func (cmd command) boolpostest(ctx context.Context, t *testing.T, args []string)
 	})
 }
 
-func (cmd command) intpostest(ctx context.Context, t *testing.T, args []string) {
+func (cmd *command) intpostest(ctx context.Context, t *testing.T, args []string) {
 	cmd.intpos = 412
 	t.Run(fmt.Sprintf("intpos_%d", cmd.intpos), func(t *testing.T) {
 		args = append(args, "412")
@@ -138,7 +158,7 @@ func (cmd command) intpostest(ctx context.Context, t *testing.T, args []string) 
 	})
 }
 
-func (cmd command) int64postest(ctx context.Context, t *testing.T, args []string) {
+func (cmd *command) int64postest(ctx context.Context, t *testing.T, args []string) {
 	cmd.int64pos = 733
 	t.Run(fmt.Sprintf("int64pos_%d", cmd.int64pos), func(t *testing.T) {
 		args = append(args, "733")
@@ -146,7 +166,7 @@ func (cmd command) int64postest(ctx context.Context, t *testing.T, args []string
 	})
 }
 
-func (cmd command) uintpostest(ctx context.Context, t *testing.T, args []string) {
+func (cmd *command) uintpostest(ctx context.Context, t *testing.T, args []string) {
 	cmd.uintpos = 31178
 	t.Run(fmt.Sprintf("uintpos_%d", cmd.uintpos), func(t *testing.T) {
 		args = append(args, "31178")
@@ -154,7 +174,7 @@ func (cmd command) uintpostest(ctx context.Context, t *testing.T, args []string)
 	})
 }
 
-func (cmd command) uint64postest(ctx context.Context, t *testing.T, args []string) {
+func (cmd *command) uint64postest(ctx context.Context, t *testing.T, args []string) {
 	cmd.uint64pos = 2134
 	t.Run(fmt.Sprintf("uint64pos_%d", cmd.uint64pos), func(t *testing.T) {
 		args = append(args, "2134")
@@ -162,7 +182,7 @@ func (cmd command) uint64postest(ctx context.Context, t *testing.T, args []strin
 	})
 }
 
-func (cmd command) strpostest(ctx context.Context, t *testing.T, args []string) {
+func (cmd *command) strpostest(ctx context.Context, t *testing.T, args []string) {
 	cmd.strpos = "plugh"
 	t.Run(fmt.Sprintf("strpos%s", cmd.strpos), func(t *testing.T) {
 		args = append(args, "plugh")
@@ -170,7 +190,7 @@ func (cmd command) strpostest(ctx context.Context, t *testing.T, args []string) 
 	})
 }
 
-func (cmd command) float64postest(ctx context.Context, t *testing.T, args []string) {
+func (cmd *command) float64postest(ctx context.Context, t *testing.T, args []string) {
 	cmd.float64pos = 2.718
 	t.Run(fmt.Sprintf("floatpos%f", cmd.float64pos), func(t *testing.T) {
 		args = append(args, "2.718")
@@ -178,7 +198,7 @@ func (cmd command) float64postest(ctx context.Context, t *testing.T, args []stri
 	})
 }
 
-func (cmd command) durpostest(ctx context.Context, t *testing.T, args []string) {
+func (cmd *command) durpostest(ctx context.Context, t *testing.T, args []string) {
 	cmd.durpos = 7 * time.Second
 	t.Run(fmt.Sprintf("durpos%s", cmd.durpos), func(t *testing.T) {
 		args = append(args, "7s")
@@ -209,9 +229,11 @@ type command struct {
 	strpos     string
 	float64pos float64
 	durpos     time.Duration
+
+	zgotopt int
 }
 
-func (cmd command) Subcmds() Map {
+func (cmd *command) Subcmds() Map {
 	return Commands(
 		"x", cmd.xcmd, "x", Params(
 			"-boolopt", Bool, false, "bool flag",
@@ -232,10 +254,13 @@ func (cmd command) Subcmds() Map {
 			"durpos", Duration, 0, "dur pos",
 		),
 		"y", cmd.ycmd, "y", nil,
+		"z", cmd.zcmd, "z", Params(
+			"opt?", Int, 7, "optional int",
+		),
 	)
 }
 
-func (cmd command) xcmd(
+func (cmd *command) xcmd(
 	_ context.Context,
 	boolopt bool,
 	intopt int,
@@ -340,7 +365,12 @@ func TestCommands(t *testing.T) {
 	}
 }
 
-func (command) ycmd(_ context.Context, _ []string) error { return nil }
+func (*command) ycmd(_ context.Context, _ []string) error { return nil }
+
+func (cmd *command) zcmd(_ context.Context, opt int, _ []string) error {
+	cmd.zgotopt = opt
+	return nil
+}
 
 // The following is needed because cmp.Diff
 // (and reflect.DeepEqual for that matter)
