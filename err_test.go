@@ -27,7 +27,7 @@ func TestMissingSubcmdErr(t *testing.T) {
 		t.Errorf(`got "%s", want "%s"`, got, want)
 	}
 
-	got = merr.Long()
+	got = merr.Detail()
 	want = `Missing subcommand, want one of:
 a    Do a
 bb   Do b
@@ -56,7 +56,7 @@ func TestUnknownSubcmdErr(t *testing.T) {
 		t.Errorf(`got "%s", want "%s"`, got, want)
 	}
 
-	got = uerr.Long()
+	got = uerr.Detail()
 	want = `Unknown subcommand "dddd", want one of:
 a    Do a
 bb   Do b
@@ -89,7 +89,7 @@ func TestHelpRequestedErr(t *testing.T) {
 		})
 
 		t.Run("long", func(t *testing.T) {
-			got := herr.Long()
+			got := herr.Detail()
 			want := `Subcommands are:
 a    Do a
 bb   Do b
@@ -122,7 +122,7 @@ ccc  Do c
 		})
 
 		t.Run("long", func(t *testing.T) {
-			got := herr.Long()
+			got := herr.Detail()
 			want := fmt.Sprintf(`a: Do a
 Usage: %s a [-a1] [-a2 int] [-a3 word] a4 [a5]
 -a1       the a1 flag
@@ -135,6 +135,21 @@ Usage: %s a [-a1] [-a2 int] [-a3 word] a4 [a5]
 			}
 		})
 	})
+}
+
+func TestTooFewArgs(t *testing.T) {
+	err := Run(context.Background(), errtestcmd{}, []string{"a"})
+	if !errors.Is(err, ErrTooFewArgs) {
+		t.Errorf("got %v, want %s", err, ErrTooFewArgs)
+	}
+}
+
+func TestParseErr(t *testing.T) {
+	err := Run(context.Background(), errtestcmd{}, []string{"a", "x"})
+	var perr ParseErr
+	if !errors.As(err, &perr) {
+		t.Errorf("got %T, want *ParseErr", err)
+	}
 }
 
 type errtestcmd struct{}

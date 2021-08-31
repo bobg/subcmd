@@ -75,8 +75,6 @@ func parsePositionalArg(p Param, args *[]string, argvals *[]reflect.Value) error
 	default:
 		return fmt.Errorf("unknown arg type %v", p.Type)
 	}
-
-	return nil
 }
 
 func parseBoolPos(args *[]string, argvals *[]reflect.Value) error {

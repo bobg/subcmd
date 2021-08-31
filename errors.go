@@ -8,16 +8,8 @@ import (
 	"strings"
 )
 
-var (
-	// ErrNoArgs is the error when Run is called with an empty list of args.
-	ErrNoArgs = errors.New("no arguments")
-
-	// ErrUnknown is the error when Run is called with an unknown subcommand as args[0].
-	ErrUnknown = errors.New("unknown subcommand")
-
-	// ErrTooFewArgs is the error when not enough arguments are supplied to populate required positional parameters.
-	ErrTooFewArgs = errors.New("too few arguments")
-)
+// ErrTooFewArgs is the error when not enough arguments are supplied to populate required positional parameters.
+var ErrTooFewArgs = errors.New("too few arguments")
 
 // ParseErr is the type of error returned when parsing a positional parameter according to its type fails.
 type ParseErr struct {
@@ -33,11 +25,12 @@ func (e ParseErr) Unwrap() error {
 	return e.Err
 }
 
-// Usage is the type of errors that give usage information.
+// UsageErr is the type of errors that give usage information.
 // Such errors have the usual Error() method producing a one-line string,
-// but also a Long() method producing a multiline string with more detail.
-type Usage interface {
-	Long() string
+// but also a Detail() method producing a multiline string with more detail.
+type UsageErr interface {
+	error
+	Detail() string
 }
 
 // MissingSubcmdErr is a usage error returned when Run is called with an empty `args` list.
@@ -50,8 +43,8 @@ func (e *MissingSubcmdErr) Error() string {
 	return fmt.Sprintf("missing subcommand, want one of: %s", strings.Join(subcmdNames(e.cmd), "; "))
 }
 
-// Long implements Usage.
-func (e *MissingSubcmdErr) Long() string {
+// Detail implements Usage.
+func (e *MissingSubcmdErr) Detail() string {
 	return missingUnknownSubcmd("Missing subcommand, want one of:", e.cmd)
 }
 
@@ -105,8 +98,8 @@ func (e *HelpRequestedErr) Error() string {
 	return fmt.Sprintf("subcommands are: %s", strings.Join(subcmdNames(e.cmd), "; "))
 }
 
-// Long implements Usage.
-func (e *HelpRequestedErr) Long() string {
+// Detail implements Usage.
+func (e *HelpRequestedErr) Detail() string {
 	if e.name != "" {
 		// foo bar help baz
 		subcmds := e.cmd.Subcmds()
@@ -188,7 +181,7 @@ func (e *HelpRequestedErr) Long() string {
 	return b.String()
 }
 
-// UnknownSubcmdErr is a usage error returned when an unknown subcommand name is passed to Run.
+// UnknownSubcmdErr is a usage error returned when an unknown subcommand name is passed to Run as args[0].
 type UnknownSubcmdErr struct {
 	pairs []subcmdPair
 	cmd   Cmd
@@ -199,8 +192,8 @@ func (e *UnknownSubcmdErr) Error() string {
 	return fmt.Sprintf(`unknown subcommand "%s", want one of: %s`, e.name, strings.Join(subcmdNames(e.cmd), "; "))
 }
 
-// Long implements Usage.
-func (e *UnknownSubcmdErr) Long() string {
+// Detail implements Usage.
+func (e *UnknownSubcmdErr) Detail() string {
 	return missingUnknownSubcmd(fmt.Sprintf(`Unknown subcommand "%s", want one of:`, e.name), e.cmd)
 }
 
