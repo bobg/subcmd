@@ -3,28 +3,38 @@ package subcmd
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"reflect"
 	"sort"
-	"time"
 
 	"github.com/pkg/errors"
 )
 
 var errType = reflect.TypeOf((*error)(nil)).Elem()
 
-// Cmd is the way a command tells Run how to parse and run its subcommands.
+// Cmd is a command that has subcommands.
+// It tells Run how to parse its subcommands, and their flags and positional parameters,
+// and how to run them.
 type Cmd interface {
 	// Subcmds returns this Cmd's subcommands as a map,
 	// whose keys are subcommand names and values are Subcmd objects.
-	// Implementations may use the Commands function to build this map.
+	// The Commands() function is useful in building this map.
 	Subcmds() Map
 }
 
 // Map is the type of the data structure returned by Cmd.Subcmds and by Commands.
 // It maps a subcommand name to its Subcmd structure.
 type Map = map[string]Subcmd
+
+// Returns c's subcommand names as a sorted slice.
+func subcmdNames(c Cmd) []string {
+	var result []string
+	for cmdname := range c.Subcmds() {
+		result = append(result, cmdname)
+	}
+	sort.Strings(result)
+	return result
+}
 
 // Subcmd is one subcommand of a Cmd.
 type Subcmd struct {
@@ -38,12 +48,17 @@ type Subcmd struct {
 	// Params describes the parameters to F
 	// (excluding the initial context.Context that F takes, and the final []string).
 	Params []Param
+
+	// Desc is a one-line description of this subcommand.
+	Desc string
 }
 
 // Param is one parameter of a Subcmd.
 type Param struct {
-	// Name is the flag name for the parameter
-	// (e.g., "verbose" for a -verbose flag).
+	// Name is the flag name for the parameter.
+	// Flags must have a leading "-", as in "-verbose".
+	// Positional parameters have no leading "-".
+	// Optional positional parameters have a trailing "?", as in "optional?".
 	Name string
 
 	// Type is the type of the parameter.
@@ -57,22 +72,39 @@ type Param struct {
 	Doc string
 }
 
+// Type is the type of a Param.
+type Type int
+
+// Possible Param types.
+// These correspond with the types in the standard flag package.
+const (
+	Bool Type = iota + 1
+	Int
+	Int64
+	Uint
+	Uint64
+	String
+	Float64
+	Duration
+)
+
 // Commands is a convenience function for producing the map needed by a Cmd.
-// It takes 3n arguments,
+// It takes 4n arguments,
 // where n is the number of subcommands.
-// Each group of three is:
+// Each group of four is:
 // - the subcommand name, a string;
 // - the function implementing the subcommand;
-// - the list of parameters for the function, a slice of Param (which can be produced with Params).
+// - a short description of the subcommand;
+// - the list of parameters for the function, a slice of Param (which can be produced with the Params function).
 //
 // A call like this:
 //
 //   Commands(
-//     "foo", foo, Params(
-//       "verbose", Bool, false, "be verbose",
+//     "foo", foo, "is the foo subcommand", Params(
+//       "-verbose", Bool, false, "be verbose",
 //     ),
-//     "bar", bar, Params(
-//       "level", Int, 0, "barness level",
+//     "bar", bar, "is the bar subcommand", Params(
+//       "-level", Int, 0, "barness level",
 //     ),
 //   )
 //
@@ -80,24 +112,26 @@ type Param struct {
 //
 //   Map{
 //     "foo": Subcmd{
-//       F: foo,
+//       F:      foo,
+//       Desc:   "is the foo subcommand",
 //       Params: []Param{
 //         {
-//           Name: "verbose",
-//           Type: Bool,
+//           Name:    "-verbose",
+//           Type:    Bool,
 //           Default: false,
-//           Doc: "be verbose",
+//           Doc:     "be verbose",
 //         },
 //       },
 //     },
 //     "bar": Subcmd{
-//       F: bar,
+//       F:      bar,
+//       Desc:   "is the bar subcommand",
 //       Params: []Param{
 //         {
-//           Name: "level",
-//           Type: Int,
+//           Name:    "-level",
+//           Type:    Int,
 //           Default: 0,
-//           Doc: "barness level",
+//           Doc:     "barness level",
 //         },
 //       },
 //     },
@@ -105,8 +139,8 @@ type Param struct {
 //
 // This function panics if the number or types of the arguments are wrong.
 func Commands(args ...interface{}) Map {
-	if len(args)%3 != 0 {
-		panic(fmt.Sprintf("S has %d arguments, which is not divisible by 3", len(args)))
+	if len(args)%4 != 0 {
+		panic(fmt.Sprintf("Commands called with %d arguments, which is not divisible by 4", len(args)))
 	}
 
 	result := make(Map)
@@ -115,15 +149,16 @@ func Commands(args ...interface{}) Map {
 		var (
 			name = args[0].(string)
 			f    = args[1]
-			p    = args[2]
+			d    = args[2].(string)
+			p    = args[3]
 		)
-		subcmd := Subcmd{F: f}
+		subcmd := Subcmd{F: f, Desc: d}
 		if p != nil {
 			subcmd.Params = p.([]Param)
 		}
 		result[name] = subcmd
 
-		args = args[3:]
+		args = args[4:]
 	}
 
 	return result
@@ -133,7 +168,7 @@ func Commands(args ...interface{}) Map {
 // It takes 4n arguments,
 // where n is the number of parameters.
 // Each group of four is:
-// - the flag name for the parameter, a string (e.g. "verbose" for a -verbose flag);
+// - the name for the parameter, a string (e.g. "-verbose" for a -verbose flag);
 // - the type of the parameter, a Type constant;
 // - the default value of the parameter,
 // - the doc string for the parameter.
@@ -141,7 +176,7 @@ func Commands(args ...interface{}) Map {
 // This function panics if the number or types of the arguments are wrong.
 func Params(a ...interface{}) []Param {
 	if len(a)%4 != 0 {
-		panic(fmt.Sprintf("Params has %d arguments, which is not divisible by 4", len(a)))
+		panic(fmt.Sprintf("Params called with %d arguments, which is not divisible by 4", len(a)))
 	}
 	var result []Param
 	for len(a) > 0 {
@@ -157,42 +192,66 @@ func Params(a ...interface{}) []Param {
 	return result
 }
 
-var (
-	// ErrNoArgs is the error when Run is called with an empty list of args.
-	ErrNoArgs = errors.New("no arguments")
-
-	// ErrUnknown is the error when Run is called with an unknown subcommand as args[0].
-	ErrUnknown = errors.New("unknown subcommand")
-)
-
 // Run runs the subcommand of c named in args[0].
-// The remaining args are parsed with a new flag.FlagSet,
-// populated according to the parameters of the named Subcmd.
-// The Subcmd's function is invoked with a context object,
-// the parameter values parsed by the FlagSet,
-// and a slice of the args left over after FlagSet parsing.
-// The FlagSet is placed in the context object that's passed to the Subcmd's function,
-// and can be retrieved if needed with the FlagSet function.
-// No FlagSet is present if the subcommand takes no parameters.
+//
+// That subcommand specifies zero or more flags and zero or more positional parameters.
+// The remaining values in args are parsed to populate those.
+//
+// After argument parsing,
+// the subcommand's function is invoked with a context object,
+// the flag and parameter values,
+// and a slice of the args remaining.
+//
+// Flags are parsed using a new flag.FlagSet,
+// which is placed into the context object passed to the subcommand's function.
+// The FlagSet can be retrieved if needed with the FlagSet function.
+// No flag.FlagSet is present if the subcommand has no flags.
+//
+// Flags are always optional, and have names beginning with "-".
+// Positional parameters may be required or optional.
+// Optional positional parameters have a trailing "?" in their names.
+//
+// Calling Run with an empty args slice produces a MissingSubcmdErr error.
+// Calling Run with an unknown subcommand name in args[0] produces an UnknownSubcmdErr error,
+// unless the unknown subcommand is "help",
+// in which case the result is a HelpRequestedErr.
+// If there are not enough values in args to populate the subcommand's required positional parameters,
+// the result is ErrTooFewArgs.
+// If argument parsing succeeds,
+// Run returns the error produced by calling the subcommand's function, if any.
 func Run(ctx context.Context, c Cmd, args []string) error {
-	cmds := c.Subcmds()
-
-	var cmdnames sort.StringSlice
-	for cmdname := range cmds {
-		cmdnames = append(cmdnames, cmdname)
-	}
-	cmdnames.Sort()
-
 	if len(args) == 0 {
-		return errors.Wrapf(ErrNoArgs, "possible subcommands: %v", cmdnames)
+		return &MissingSubcmdErr{
+			pairs: subcmdPairList(ctx),
+			cmd:   c,
+		}
 	}
+
+	cmds := c.Subcmds()
 
 	name := args[0]
 	args = args[1:]
 	subcmd, ok := cmds[name]
-	if !ok {
-		return errors.Wrapf(ErrUnknown, "got %s, want one of %v", name, cmdnames)
+
+	if !ok && name == "help" {
+		e := &HelpRequestedErr{
+			pairs: subcmdPairList(ctx),
+			cmd:   c,
+		}
+		if len(args) > 0 {
+			e.name = args[0]
+		}
+		return e
 	}
+	if !ok {
+		return &UnknownSubcmdErr{
+			pairs: subcmdPairList(ctx),
+			cmd:   c,
+			name:  name,
+		}
+	}
+
+	ctx = addSubcmdPair(ctx, name, subcmd)
 
 	argvals, err := parseArgs(ctx, subcmd.Params, args)
 	if err != nil {
@@ -226,96 +285,6 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 	if numOut == 1 {
 		err, _ = rv[0].Interface().(error)
 	}
+
 	return errors.Wrapf(err, "running %s", name)
-}
-
-func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Value, error) {
-	fs := flag.NewFlagSet("", flag.ContinueOnError)
-	ctx = context.WithValue(ctx, fskey, fs)
-
-	var ptrs []reflect.Value
-
-	for _, p := range params {
-		var v interface{}
-
-		switch p.Type {
-		case Bool:
-			dflt, _ := p.Default.(bool)
-			v = fs.Bool(p.Name, dflt, p.Doc)
-
-		case Int:
-			dflt, _ := p.Default.(int)
-			v = fs.Int(p.Name, dflt, p.Doc)
-
-		case Int64:
-			dflt, _ := p.Default.(int64)
-			v = fs.Int64(p.Name, dflt, p.Doc)
-
-		case Uint:
-			dflt, _ := p.Default.(uint)
-			v = fs.Uint(p.Name, dflt, p.Doc)
-
-		case Uint64:
-			dflt, _ := p.Default.(uint64)
-			v = fs.Uint64(p.Name, dflt, p.Doc)
-
-		case String:
-			dflt, _ := p.Default.(string)
-			v = fs.String(p.Name, dflt, p.Doc)
-
-		case Float64:
-			dflt, _ := p.Default.(float64)
-			v = fs.Float64(p.Name, dflt, p.Doc)
-
-		case Duration:
-			dflt, _ := p.Default.(time.Duration)
-			v = fs.Duration(p.Name, dflt, p.Doc)
-
-		default:
-			return nil, fmt.Errorf("unknown arg type %v", p.Type)
-		}
-
-		ptrs = append(ptrs, reflect.ValueOf(v))
-	}
-
-	err := fs.Parse(args)
-	if err != nil {
-		return nil, errors.Wrap(err, "parsing args")
-	}
-
-	args = fs.Args()
-
-	argvals := []reflect.Value{reflect.ValueOf(ctx)}
-	for _, ptr := range ptrs {
-		argvals = append(argvals, ptr.Elem())
-	}
-	argvals = append(argvals, reflect.ValueOf(args))
-
-	return argvals, nil
-}
-
-// Type is the type of a Param.
-type Type int
-
-// Possible Param types.
-// These correspond with the types in the standard flag package.
-const (
-	Bool Type = iota + 1
-	Int
-	Int64
-	Uint
-	Uint64
-	String
-	Float64
-	Duration
-)
-
-type fskeytype struct{}
-
-var fskey fskeytype
-
-// FlagSet produces the *flag.FlagSet used in a call to a Subcmd function.
-func FlagSet(ctx context.Context) *flag.FlagSet {
-	val := ctx.Value(fskey)
-	return val.(*flag.FlagSet)
 }
