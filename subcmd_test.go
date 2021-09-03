@@ -135,7 +135,7 @@ func (cmd *command) durflagtest(ctx context.Context, t *testing.T, args []string
 		cmd.duropt = duropt
 		t.Run(fmt.Sprintf("dur%s", duropt), func(t *testing.T) {
 			if duropt != 0 {
-				args = append(args, "-duropt", fmt.Sprintf("%s", duropt))
+				args = append(args, "-duropt", duropt.String())
 			}
 			cmd.boolpostest(ctx, t, args)
 		})

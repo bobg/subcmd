@@ -2,6 +2,7 @@ package subcmd
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -231,4 +232,67 @@ func parseDurationPos(args *[]string, argvals *[]reflect.Value, p Param) error {
 	}
 	*argvals = append(*argvals, reflect.ValueOf(val))
 	return nil
+}
+
+// ToFlagSet produces a *flag.FlagSet from the given params,
+// plus a list of properly typed pointers in which to store the result of calling Parse on the FlagSet.
+func ToFlagSet(params []Param) (*flag.FlagSet, []reflect.Value, []Param, error) {
+	var (
+		fs         = flag.NewFlagSet("", flag.ContinueOnError)
+		ptrs       []reflect.Value
+		positional []Param
+	)
+
+	for _, p := range params {
+		if !strings.HasPrefix(p.Name, "-") {
+			positional = append(positional, p)
+			continue
+		}
+
+		var (
+			name = p.Name[1:]
+			v    interface{}
+		)
+
+		switch p.Type {
+		case Bool:
+			dflt, _ := p.Default.(bool)
+			v = fs.Bool(name, dflt, p.Doc)
+
+		case Int:
+			dflt, _ := p.Default.(int)
+			v = fs.Int(name, dflt, p.Doc)
+
+		case Int64:
+			dflt, _ := p.Default.(int64)
+			v = fs.Int64(name, dflt, p.Doc)
+
+		case Uint:
+			dflt, _ := p.Default.(uint)
+			v = fs.Uint(name, dflt, p.Doc)
+
+		case Uint64:
+			dflt, _ := p.Default.(uint64)
+			v = fs.Uint64(name, dflt, p.Doc)
+
+		case String:
+			dflt, _ := p.Default.(string)
+			v = fs.String(name, dflt, p.Doc)
+
+		case Float64:
+			dflt, _ := p.Default.(float64)
+			v = fs.Float64(name, dflt, p.Doc)
+
+		case Duration:
+			dflt, _ := p.Default.(time.Duration)
+			v = fs.Duration(name, dflt, p.Doc)
+
+		default:
+			return nil, nil, nil, fmt.Errorf("unknown arg type %v", p.Type)
+		}
+
+		ptrs = append(ptrs, reflect.ValueOf(v))
+	}
+
+	return fs, ptrs, positional, nil
 }

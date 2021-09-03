@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// ErrTooFewArgs is the error when not enough arguments are supplied to populate required positional parameters.
+// ErrTooFewArgs is the error when not enough arguments are supplied for required positional parameters.
 var ErrTooFewArgs = errors.New("too few arguments")
 
 // ParseErr is the type of error returned when parsing a positional parameter according to its type fails.

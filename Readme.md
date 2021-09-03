@@ -47,12 +47,14 @@ type command struct {
 func (c command) Subcmds() subcmd.Map {
   return subcmd.Commands(
     // The "list" subcommand takes one flag, -reverse.
-    "list", c.list, subcmd.Params(
-      "reverse", subcmd.Bool, false, "reverse order of list",
+    "list", c.list, "list employees", subcmd.Params(
+      "-reverse", subcmd.Bool, false, "reverse order of list",
     ),
 
-    // The "add" subcommand takes no flags.
-    "add", c.add, nil,
+    // The "add" subcommand takes no flags but one positional argument.
+    "add", c.add, "add new employee", subcmd.Params(
+      "name", subcmd.String, "", "employee name",
+    )
   )
 }
 
@@ -71,9 +73,9 @@ func (c command) list(ctx context.Context, reverse bool, _ []string) error {
 }
 
 // Implementation of the "add" subcommand.
-func (c command) add(ctx context.Context, args []string) error {
+func (c command) add(ctx context.Context, name string, _ []string) error {
   if len(args) != 1 { ...usage error... }
-  _, err := c.db.ExecContext(ctx, "INSERT INTO employees (name) VALUES ($1)", args[0])
+  _, err := c.db.ExecContext(ctx, "INSERT INTO employees (name) VALUES ($1)", name)
   return err
 }
 ```
