@@ -74,7 +74,6 @@ func (c command) list(ctx context.Context, reverse bool, _ []string) error {
 
 // Implementation of the "add" subcommand.
 func (c command) add(ctx context.Context, name string, _ []string) error {
-  if len(args) != 1 { ...usage error... }
   _, err := c.db.ExecContext(ctx, "INSERT INTO employees (name) VALUES ($1)", name)
   return err
 }
