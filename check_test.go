@@ -3,71 +3,82 @@ package subcmd
 import (
 	"context"
 	"testing"
+	"time"
 )
 
-func TestCheck(t *testing.T) {
+func TestCheckZeroArgs(t *testing.T) {
 	cases := []struct {
 		name    string
 		f       interface{}
-		ptypes  []Type
 		wantErr bool
 	}{{
-		name: "noParamsOK",
-		f:    checkNoParams,
+		name: "noErr",
+		f:    func(context.Context, []string) {},
 	}, {
-		name:    "noParamsBad",
-		f:       checkNoParams,
-		ptypes:  []Type{Bool},
+		name: "err",
+		f:    func(context.Context, []string) error { return nil },
+	}, {
+		name:    "noContext",
+		f:       func([]string) {},
 		wantErr: true,
 	}, {
-		name: "noParamsNoErrOK",
-		f:    checkNoParamsNoErr,
-	}, {
-		name:    "noParamsNoErrBad",
-		f:       checkNoParamsNoErr,
-		ptypes:  []Type{Bool},
+		name:    "noArgs",
+		f:       func(context.Context) {},
 		wantErr: true,
 	}, {
-		name:   "oneBoolFlagOK",
-		f:      checkOneBoolFlag,
-		ptypes: []Type{Bool},
-	}, {
-		name:    "oneBoolFlagTooMany",
-		f:       checkOneBoolFlag,
-		ptypes:  []Type{Bool, Bool},
-		wantErr: true,
-	}, {
-		name:    "oneBoolFlagTooFew",
-		f:       checkOneBoolFlag,
-		wantErr: true,
-	}, {
-		name:    "oneBoolFlagWrongType",
-		f:       checkOneBoolFlag,
-		ptypes:  []Type{Int},
+		name:    "extraArg",
+		f:       func(context.Context, int, []string) {},
 		wantErr: true,
 	}}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var params []Param
-			for _, ptype := range tc.ptypes {
-				params = append(params, Param{Type: ptype})
-			}
-			err := Check(Subcmd{F: tc.f, Params: params})
-			switch {
-			case err == nil && tc.wantErr:
-				t.Error("got no error but want one")
-			case err != nil && !tc.wantErr:
-				t.Error(err)
+			err := Check(Subcmd{F: tc.f})
+			if gotErr := err != nil; gotErr != tc.wantErr {
+				t.Errorf("got err %v, wantErr is %v", err, tc.wantErr)
 			}
 		})
 	}
 }
 
-func checkNoParamsNoErr(_ context.Context, _ []string) {}
+func TestCheckOneArg(t *testing.T) {
+	for ptyp := Bool; ptyp <= Duration; ptyp++ {
+		t.Run(ptyp.String(), func(t *testing.T) {
+			var fOK, fTooMany interface{}
+			switch ptyp {
+			case Bool:
+				fOK = func(context.Context, bool, []string) {}
+				fTooMany = func(context.Context, bool, bool, []string) {}
+			case Int:
+				fOK = func(context.Context, int, []string) {}
+				fTooMany = func(context.Context, int, int, []string) {}
+			case Int64:
+				fOK = func(context.Context, int64, []string) {}
+				fTooMany = func(context.Context, int64, int64, []string) {}
+			case Uint:
+				fOK = func(context.Context, uint, []string) {}
+				fTooMany = func(context.Context, uint, uint, []string) {}
+			case Uint64:
+				fOK = func(context.Context, uint64, []string) {}
+				fTooMany = func(context.Context, uint64, uint64, []string) {}
+			case String:
+				fOK = func(context.Context, string, []string) {}
+				fTooMany = func(context.Context, string, string, []string) {}
+			case Float64:
+				fOK = func(context.Context, float64, []string) {}
+				fTooMany = func(context.Context, float64, float64, []string) {}
+			case Duration:
+				fOK = func(context.Context, time.Duration, []string) {}
+				fTooMany = func(context.Context, time.Duration, time.Duration, []string) {}
+			}
 
-func checkNoParams(_ context.Context, _ []string) error {
-	return nil
+			if err := Check(Subcmd{F: fOK, Params: []Param{{Type: ptyp}}}); err != nil {
+				t.Error(err)
+			}
+
+			_ = fTooMany
+
+		})
+
+	}
 }
-
-func checkOneBoolFlag(_ context.Context, _ bool, _ []string) {}

@@ -25,6 +25,14 @@ type Cmd interface {
 	Subcmds() Map
 }
 
+// Prefixer is an optional additional interface that a Cmd can implement.
+// If it does, and a call to Run encounters an unknown subcommand,
+// then before returning an error it will look for an executable in $PATH
+// whose name is Prefix() plus the subcommand name.
+// If it finds one,
+// it is executed with the remaining args as arguments,
+// and a JSON-marshaled copy of the Cmd in the environment variable SUBCMD_ENV
+// (that can be parsed by the subprocess using ParseEnv).
 type Prefixer interface {
 	Prefix() string
 }
@@ -98,6 +106,34 @@ const (
 	contextType
 	stringSliceType
 )
+
+// String returns the name of t.
+func (t Type) String() string {
+	switch t {
+	case Bool:
+		return "bool"
+	case Int:
+		return "int"
+	case Int64:
+		return "int64"
+	case Uint:
+		return "uint"
+	case Uint64:
+		return "uint64"
+	case String:
+		return "string"
+	case Float64:
+		return "float64"
+	case Duration:
+		return "time.Duration"
+	case contextType:
+		return "context.Context"
+	case stringSliceType:
+		return "[]string"
+	default:
+		return fmt.Sprintf("unknown type %d", t)
+	}
+}
 
 // Commands is a convenience function for producing the Map
 // needed by an implementation of Cmd.Subcmd.
@@ -245,13 +281,15 @@ func Params(a ...interface{}) []Param {
 //
 // Calling Run with an unknown subcommand name in args[0] produces an UnknownSubcmdErr error,
 // unless the unknown subcommand is "help",
-// in which case the result is a HelpRequestedErr.
+// in which case the result is a HelpRequestedErr,
+// or unless c is also a Prefixer.
 //
 // If c is a Prefixer and the subcommand name is both unknown and not "help",
 // then an executable is sought in $PATH with c's prefix plus the subcommand name.
 // If one is found,
 // it is executed with the remaining args as arguments,
-// and a JSON-marshaled copy of c in the environment variable SUBCMD_ENV.
+// and a JSON-marshaled copy of c in the environment variable SUBCMD_ENV
+// (that can be parsed by the subprocess using ParseEnv).
 //
 // If there are not enough values in args to populate the subcommand's required positional parameters,
 // the result is ErrTooFewArgs.
@@ -355,6 +393,9 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 	return errors.Wrapf(err, "running %s", name)
 }
 
+// EnvVar is the name of the environment variable used by Run to pass the JSON-encoded Cmd to a subprocess.
+// Use ParseEnv to decode it.
+// See Prefixer.
 const EnvVar = "SUBCMD_ENV"
 
 // ParseEnv parses the value of the SUBCMD_ENV environment variable,
