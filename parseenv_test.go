@@ -2,7 +2,6 @@ package subcmd
 
 import (
 	"encoding/json"
-	"os"
 	"testing"
 )
 
