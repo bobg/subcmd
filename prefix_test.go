@@ -17,7 +17,9 @@ func TestPrefix(t *testing.T) {
 	}
 	path := os.Getenv("PATH")
 	path += ":" + filepath.Join(wd, "testdata")
-	t.Setenv("PATH", path)
+
+	restoreEnv := testSetenv("PATH", path)
+	defer restoreEnv()
 
 	t.Run("subcmd", func(t *testing.T) {
 		if err := Run(ctx, testPrefixMainCmd{}, []string{"subcmd", "a", "b", "c"}); err != nil {
