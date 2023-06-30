@@ -11,14 +11,14 @@ import (
 
 // Check performs type checking on subcmd as follows:
 //
-//  - It checks that subcmd.F is a function and returns ErrNotAFunction if it isn't.
-//  - It checks that subcmd.F returns no more than one value and returns ErrTooManyReturns if it doesn't.
-//  - It checks that the type of the value returned by subcmd.F (if any) is error and returns ErrNotError if it isn't.
-//  - It checks that subcmd.F takes an initial context.Context parameter and returns ErrNoContext if it doesn't.
-//  - It checks that subcmd.F takes a final []string parameter and returns ErrNoStringSlice if it doesn't.
-//  - It checks that the length of subcmd.Params matches the number of parameters subcmd.F takes (not counting the initial context.Context and final []string parameters) and returns a NumParamsErr if it doesn't.
-//  - It checks that each parameter in subcmd.Params matches the corresponding parameter in subcmd.F and returns a ParamTypeErr if it doesn't.
-//  - It checks that the default value of each parameter in subcmd.Params matches the parameter's type and returns a ParamDefaultErr if it doesn't.
+//   - It checks that subcmd.F is a function and returns ErrNotAFunction if it isn't.
+//   - It checks that subcmd.F returns no more than one value and returns ErrTooManyReturns if it doesn't.
+//   - It checks that the type of the value returned by subcmd.F (if any) is error and returns ErrNotError if it isn't.
+//   - It checks that subcmd.F takes an initial context.Context parameter and returns ErrNoContext if it doesn't.
+//   - It checks that subcmd.F takes a final []string parameter and returns ErrNoStringSlice if it doesn't.
+//   - It checks that the length of subcmd.Params matches the number of parameters subcmd.F takes (not counting the initial context.Context and final []string parameters) and returns a NumParamsErr if it doesn't.
+//   - It checks that each parameter in subcmd.Params matches the corresponding parameter in subcmd.F and returns a ParamTypeErr if it doesn't.
+//   - It checks that the default value of each parameter in subcmd.Params matches the parameter's type and returns a ParamDefaultErr if it doesn't.
 //
 // Only the first error encountered is returned.
 func Check(subcmd Subcmd) error {
@@ -89,108 +89,56 @@ func CheckMap(m Map) error {
 func checkParam(ft reflect.Type, n int, want Type) error {
 	var (
 		paramType = ft.In(n)
-		errType   reflect.Type
+		argType   reflect.Type
 	)
 
 	switch want {
 	case Bool:
-		var (
-			x  bool
-			xt = reflect.TypeOf(x)
-		)
-		if !xt.AssignableTo(paramType) {
-			errType = xt
-		}
+		var x bool
+		argType = reflect.TypeOf(x)
 
 	case Int:
-		var (
-			x  int
-			xt = reflect.TypeOf(x)
-		)
-		if !xt.AssignableTo(paramType) {
-			errType = xt
-		}
+		var x int
+		argType = reflect.TypeOf(x)
 
 	case Int64:
-		var (
-			x  int64
-			xt = reflect.TypeOf(x)
-		)
-		if !xt.AssignableTo(paramType) {
-			errType = xt
-		}
+		var x int64
+		argType = reflect.TypeOf(x)
 
 	case Uint:
-		var (
-			x  uint
-			xt = reflect.TypeOf(x)
-		)
-		if !xt.AssignableTo(paramType) {
-			errType = xt
-		}
+		var x uint
+		argType = reflect.TypeOf(x)
 
 	case Uint64:
-		var (
-			x  uint64
-			xt = reflect.TypeOf(x)
-		)
-		if !xt.AssignableTo(paramType) {
-			errType = xt
-		}
+		var x uint64
+		argType = reflect.TypeOf(x)
 
 	case String:
-		var (
-			x  string
-			xt = reflect.TypeOf(x)
-		)
-		if !xt.AssignableTo(paramType) {
-			errType = xt
-		}
+		var x string
+		argType = reflect.TypeOf(x)
 
 	case Float64:
-		var (
-			x  float64
-			xt = reflect.TypeOf(x)
-		)
-		if !xt.AssignableTo(paramType) {
-			errType = xt
-		}
+		var x float64
+		argType = reflect.TypeOf(x)
 
 	case Duration:
-		var (
-			x  time.Duration
-			xt = reflect.TypeOf(x)
-		)
-		if !xt.AssignableTo(paramType) {
-			errType = xt
-		}
+		var x time.Duration
+		argType = reflect.TypeOf(x)
 
 	case contextType:
-		var (
-			x  = context.Background() // Need a concrete value, not a nil interface.
-			xt = reflect.TypeOf(x)
-		)
-		if !xt.AssignableTo(paramType) {
-			// Special case.
-			return ErrNoContext
-		}
+		var x = context.Background() // Need a concrete value, not a nil interface.
+		argType = reflect.TypeOf(x)
 
 	case stringSliceType:
-		var (
-			x  []string
-			xt = reflect.TypeOf(x)
-		)
-		if !xt.AssignableTo(paramType) {
-			// Special case.
-			return ErrNoStringSlice
-		}
+		var x []string
+		argType = reflect.TypeOf(x)
 
 	default:
 		return fmt.Errorf("unknown type %v", want)
 	}
 
-	if errType != nil {
-		return ParamTypeErr{N: n, Want: want, Got: errType}
+	if !argType.AssignableTo(paramType) {
+		return ParamTypeErr{N: n, Want: want, Got: paramType}
 	}
 
 	return nil

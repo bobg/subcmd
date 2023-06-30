@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"reflect"
 	"sort"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -132,6 +133,33 @@ func (t Type) String() string {
 		return "[]string"
 	default:
 		return fmt.Sprintf("unknown type %d", t)
+	}
+}
+
+func (t Type) reflectType() reflect.Type {
+	switch t {
+	case Bool:
+		return reflect.TypeOf(false)
+	case Int:
+		return reflect.TypeOf(int(0))
+	case Int64:
+		return reflect.TypeOf(int64(0))
+	case Uint:
+		return reflect.TypeOf(uint(0))
+	case Uint64:
+		return reflect.TypeOf(uint64(0))
+	case String:
+		return reflect.TypeOf("")
+	case Float64:
+		return reflect.TypeOf(float64(0))
+	case Duration:
+		return reflect.TypeOf(time.Duration(0))
+	case contextType:
+		return reflect.TypeOf((*context.Context)(nil)).Elem()
+	case stringSliceType:
+		return reflect.TypeOf([]string(nil))
+	default:
+		panic(fmt.Sprintf("unknown type %d", t))
 	}
 }
 

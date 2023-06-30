@@ -2,6 +2,7 @@ package subcmd
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -72,13 +73,60 @@ func TestCheckOneArg(t *testing.T) {
 				fTooMany = func(context.Context, time.Duration, time.Duration, []string) {}
 			}
 
-			if err := Check(Subcmd{F: fOK, Params: []Param{{Type: ptyp}}}); err != nil {
-				t.Error(err)
-			}
+			t.Run("one", func(t *testing.T) {
+				if err := Check(Subcmd{F: fOK, Params: []Param{{Type: ptyp}}}); err != nil {
+					t.Error(err)
+				}
+			})
 
-			_ = fTooMany
+			t.Run("toomany", func(t *testing.T) {
+				err := Check(Subcmd{F: fTooMany, Params: []Param{{Type: ptyp}}})
+				var npErr NumParamsErr
+				if errors.As(err, &npErr) {
+					if npErr.Got != 4 || npErr.Want != 3 {
+						t.Errorf("got got=%d, want=%d, want got=4, want=3", npErr.Got, npErr.Want)
+					}
+				} else {
+					t.Errorf("got %v, want NumParamsErr", err)
+				}
+			})
 
+			t.Run("toofew", func(t *testing.T) {
+				err := Check(Subcmd{F: func(context.Context, []string) {}, Params: []Param{{Type: ptyp}}})
+				var npErr NumParamsErr
+				if errors.As(err, &npErr) {
+					if npErr.Got != 2 || npErr.Want != 3 {
+						t.Errorf("got got=%d, want=%d, want got=2, want=3", npErr.Got, npErr.Want)
+					}
+				} else {
+					t.Errorf("got %v, want NumParamsErr", err)
+				}
+			})
+
+			t.Run("wrongtype", func(t *testing.T) {
+				for ptyp2 := Bool; ptyp2 <= Duration; ptyp2++ {
+					if ptyp2 == ptyp {
+						continue
+					}
+					t.Run(ptyp2.String(), func(t *testing.T) {
+						err := Check(Subcmd{F: fOK, Params: []Param{{Type: ptyp2}}})
+						var ptErr ParamTypeErr
+						if errors.As(err, &ptErr) {
+							if ptErr.N != 1 {
+								t.Errorf("got N=%d, want N=1", ptErr.N)
+							}
+							if ptErr.Want != ptyp2 {
+								t.Errorf("got Want=%v, want Want=%v", ptErr.Want, ptyp2)
+							}
+							if rt := ptyp.reflectType(); ptErr.Got != rt {
+								t.Errorf("got Got=%v, want Got=%v", ptErr.Got, rt)
+							}
+						} else {
+							t.Errorf("got %v, want ParamTypeErr", err)
+						}
+					})
+				}
+			})
 		})
-
 	}
 }
