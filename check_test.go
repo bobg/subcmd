@@ -130,3 +130,33 @@ func TestCheckOneArg(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckNotFunc(t *testing.T) {
+	if err := Check(Subcmd{F: 42}); !errors.Is(err, ErrNotAFunction) {
+		t.Errorf("got %v, want ErrNotAFunction", err)
+	}
+}
+
+func TestCheckNoContext(t *testing.T) {
+	if err := Check(Subcmd{F: func(int, []string) {}}); !errors.Is(err, ErrNoContext) {
+		t.Errorf("got %v, want ErrNoContext", err)
+	}
+}
+
+func TestCheckNoStringSlice(t *testing.T) {
+	if err := Check(Subcmd{F: func(context.Context, int) {}}); !errors.Is(err, ErrNoStringSlice) {
+		t.Errorf("got %v, want ErrNoStringSlice", err)
+	}
+}
+
+func TestCheckNoError(t *testing.T) {
+	if err := Check(Subcmd{F: func(context.Context, []string) int { return 0 }}); !errors.Is(err, ErrNotError) {
+		t.Errorf("got %v, want ErrNotError", err)
+	}
+}
+
+func TestTooManyReturns(t *testing.T) {
+	if err := Check(Subcmd{F: func(context.Context, []string) (int, int) { return 0, 0 }}); !errors.Is(err, ErrTooManyReturns) {
+		t.Errorf("got %v, want ErrTooManyReturns", err)
+	}
+}

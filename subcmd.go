@@ -102,10 +102,6 @@ const (
 	String
 	Float64
 	Duration
-
-	// The following are for internal use only.
-	contextType
-	stringSliceType
 )
 
 // String returns the name of t.
@@ -127,10 +123,6 @@ func (t Type) String() string {
 		return "float64"
 	case Duration:
 		return "time.Duration"
-	case contextType:
-		return "context.Context"
-	case stringSliceType:
-		return "[]string"
 	default:
 		return fmt.Sprintf("unknown type %d", t)
 	}
@@ -154,10 +146,6 @@ func (t Type) reflectType() reflect.Type {
 		return reflect.TypeOf(float64(0))
 	case Duration:
 		return reflect.TypeOf(time.Duration(0))
-	case contextType:
-		return reflect.TypeOf((*context.Context)(nil)).Elem()
-	case stringSliceType:
-		return reflect.TypeOf([]string(nil))
 	default:
 		panic(fmt.Sprintf("unknown type %d", t))
 	}
@@ -393,10 +381,10 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 	fv := reflect.ValueOf(subcmd.F)
 	ft := fv.Type()
 	if ft.Kind() != reflect.Func {
-		return fmt.Errorf("implementation for subcommand %s is a %s, want a function", name, ft.Kind())
+		return ErrNotAFunction
 	}
 	if numIn := ft.NumIn(); numIn != len(argvals) {
-		return fmt.Errorf("function for subcommand %s takes %d arg(s), want %d", name, numIn, len(argvals))
+		return NumParamsErr{Got: numIn, Want: len(argvals)}
 	}
 	for i, argval := range argvals {
 		if !argval.Type().AssignableTo(ft.In(i)) {
@@ -406,10 +394,10 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 
 	numOut := ft.NumOut()
 	if numOut > 1 {
-		return fmt.Errorf("function for subcommand %s returns %d values, want 0 or 1", name, numOut)
+		return ErrTooManyReturns
 	}
 	if numOut == 1 && !ft.Out(0).Implements(errType) {
-		return fmt.Errorf("return type is not error")
+		return ErrNotError
 	}
 
 	rv := fv.Call(argvals)

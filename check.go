@@ -31,11 +31,12 @@ func Check(subcmd Subcmd) error {
 	if numIn != len(subcmd.Params)+2 {
 		return NumParamsErr{Want: len(subcmd.Params) + 2, Got: numIn}
 	}
-	if err := checkParam(ft, 0, contextType); err != nil {
-		return errors.Wrap(err, "checking parameter 0")
+
+	if !reflect.TypeOf(context.Background()).AssignableTo(ft.In(0)) {
+		return ErrNoContext
 	}
-	if err := checkParam(ft, numIn-1, stringSliceType); err != nil {
-		return errors.Wrap(err, "checking last parameter")
+	if !reflect.TypeOf([]string(nil)).AssignableTo(ft.In(numIn - 1)) {
+		return ErrNoStringSlice
 	}
 
 	for i, param := range subcmd.Params {
@@ -60,7 +61,7 @@ func Check(subcmd Subcmd) error {
 }
 
 var (
-	// ErrNotAFunction is returned by Check if the F field of a Subcmd is not a function.
+	// ErrNotAFunction means the F field of a Subcmd is not a function.
 	ErrNotAFunction = errors.New("not a function")
 
 	// ErrNotError is returned by Check if the F field of a Subcmd returns a value that is not an error.
@@ -125,14 +126,6 @@ func checkParam(ft reflect.Type, n int, want Type) error {
 		var x time.Duration
 		argType = reflect.TypeOf(x)
 
-	case contextType:
-		var x = context.Background() // Need a concrete value, not a nil interface.
-		argType = reflect.TypeOf(x)
-
-	case stringSliceType:
-		var x []string
-		argType = reflect.TypeOf(x)
-
 	default:
 		return fmt.Errorf("unknown type %v", want)
 	}
@@ -149,11 +142,11 @@ type ParamTypeErr struct {
 	// N is the parameter number. The initial context.Context is parameter 0.
 	N int
 
-	// Want is the type specified in the Param.Type field.
-	Want Type
-
 	// Got is the type of the parameter in the function.
 	Got reflect.Type
+
+	// Want is the type specified in the Param.Type field.
+	Want Type
 }
 
 func (e ParamTypeErr) Error() string {
@@ -163,7 +156,11 @@ func (e ParamTypeErr) Error() string {
 // NumParamsErr is returned by Check if the number of parameters in a Subcmd's function doesn't match the number of Param fields
 // (plus two for the initial context.Context and final []string).
 type NumParamsErr struct {
-	Want, Got int
+	// Got is the number of parameters in the function.
+	Got int
+
+	// Want is the number of parameters expected based on the length of Subcmd.Params.
+	Want int
 }
 
 func (e NumParamsErr) Error() string {
