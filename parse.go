@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// The length of the resulting slice is len(params)+2.
 func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Value, error) {
 	fs, ptrs, positional, err := ToFlagSet(params)
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 )
 
@@ -213,4 +214,29 @@ func missingUnknownSubcmd(line1 string, cmd Cmd) string {
 		fmt.Fprintf(b, format, name, subcmds[name].Desc)
 	}
 	return b.String()
+}
+
+// FuncTypeErr means a Subcmd's F field has a type that does not match the function signature implied by its Params field.
+type FuncTypeErr struct {
+	// Got is the type of the F field.
+	Got reflect.Type
+
+	// Want is the expected function type implied by the Params field.
+	// Note: for simplicity, this includes the optional error return,
+	// even if the type in Got does not
+	// (which is not, in itself, an error).
+	Want reflect.Type
+}
+
+func (e FuncTypeErr) Error() string {
+	return fmt.Sprintf("function has type %v, want %v", e.Got, e.Want)
+}
+
+// ParamDefaultErr is the error when a Param has a default value that is not of the correct type.
+type ParamDefaultErr struct {
+	Param Param
+}
+
+func (e ParamDefaultErr) Error() string {
+	return fmt.Sprintf("default value %v is not of type %v", e.Param.Default, e.Param.Type)
 }

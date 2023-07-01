@@ -332,12 +332,18 @@ func (cmd *command) xcmd(
 }
 
 func TestCommands(t *testing.T) {
+	baz := Subcmd{
+		F:    bazcmd,
+		Desc: "baz command",
+	}
+
 	got := Commands(
 		"foo", foocmd, "foo command", Params(
 			"a", Bool, false, "flag a",
 			"b", Int, 0, "flag b",
 		),
 		"bar", barcmd, "bar command", nil,
+		"baz", baz,
 	)
 	want := Map{
 		"foo": Subcmd{
@@ -359,6 +365,10 @@ func TestCommands(t *testing.T) {
 			F:    barcmd,
 			Desc: "bar command",
 		},
+		"baz": Subcmd{
+			F:    bazcmd,
+			Desc: "baz command",
+		},
 	}
 	if diff := cmp.Diff(want, got, fooopt, baropt); diff != "" {
 		t.Errorf("mismatch (-want +got):\n%s", diff)
@@ -378,6 +388,7 @@ func (cmd *command) zcmd(_ context.Context, opt int, _ []string) error {
 
 func foocmd(context.Context, bool, int, []string) {}
 func barcmd(context.Context, []string)            {}
+func bazcmd(context.Context, []string)            {}
 
 var (
 	foocomparer = func(_, _ func(context.Context, bool, int, []string)) bool { return true }
