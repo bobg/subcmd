@@ -124,28 +124,28 @@ func TestCheckNotFunc(t *testing.T) {
 func TestCheckNoContext(t *testing.T) {
 	var e FuncTypeErr
 	if err := Check(Subcmd{F: func(int, []string) {}}); !errors.As(err, &e) {
-		t.Errorf("got %v, want ErrNoContext", err)
+		t.Errorf("got %v, want FuncTypeErr", err)
 	}
 }
 
 func TestCheckNoStringSlice(t *testing.T) {
 	var e FuncTypeErr
 	if err := Check(Subcmd{F: func(context.Context, int) {}}); !errors.As(err, &e) {
-		t.Errorf("got %v, want ErrNoStringSlice", err)
+		t.Errorf("got %v, want FuncTypeErr", err)
 	}
 }
 
 func TestCheckNoError(t *testing.T) {
 	var e FuncTypeErr
 	if err := Check(Subcmd{F: func(context.Context, []string) int { return 0 }}); !errors.As(err, &e) {
-		t.Errorf("got %v, want ErrNotError", err)
+		t.Errorf("got %v, want FuncTypeErr", err)
 	}
 }
 
 func TestTooManyReturns(t *testing.T) {
 	var e FuncTypeErr
 	if err := Check(Subcmd{F: func(context.Context, []string) (int, int) { return 0, 0 }}); !errors.As(err, &e) {
-		t.Errorf("got %v, want ErrTooManyReturns", err)
+		t.Errorf("got %v, want FuncTypeErr", err)
 	}
 }
 
