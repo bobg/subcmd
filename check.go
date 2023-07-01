@@ -1,81 +1,51 @@
 package subcmd
 
 import (
-	"context"
-	"fmt"
 	"reflect"
-	"time"
 
 	"github.com/pkg/errors"
 )
 
-// Check performs type checking on subcmd as follows:
+// Check checks that the type of subcmd.F matches the expectations set by subcmd.Params:
 //
-//   - It checks that subcmd.F is a function and returns ErrNotAFunction if it isn't.
-//   - It checks that subcmd.F returns no more than one value and returns ErrTooManyReturns if it doesn't.
-//   - It checks that the type of the value returned by subcmd.F (if any) is error and returns ErrNotError if it isn't.
-//   - It checks that subcmd.F takes an initial context.Context parameter and returns ErrNoContext if it doesn't.
-//   - It checks that subcmd.F takes a final []string parameter and returns ErrNoStringSlice if it doesn't.
-//   - It checks that the length of subcmd.Params matches the number of parameters subcmd.F takes (not counting the initial context.Context and final []string parameters) and returns a NumParamsErr if it doesn't.
-//   - It checks that each parameter in subcmd.Params matches the corresponding parameter in subcmd.F and returns a ParamTypeErr if it doesn't.
-//   - It checks that the default value of each parameter in subcmd.Params matches the parameter's type and returns a ParamDefaultErr if it doesn't.
+//   - It must be a function;
+//   - It must return no more than one value;
+//   - If it returns a value, that value must be of type error;
+//   - It must take an initial context.Context parameter;
+//   - It must take a final []string parameter;
+//   - The length of subcmd.Params must match the number of parameters subcmd.F takes (not counting the initial context.Context and final []string parameters);
+//   - Each parameter in subcmd.Params must match the corresponding parameter in subcmd.F.
 //
-// Only the first error encountered is returned.
+// It also checks that the default value of each parameter in subcmd.Params matches the parameter's type.
 func Check(subcmd Subcmd) error {
 	fv := reflect.ValueOf(subcmd.F)
 	ft := fv.Type()
-	if ft.Kind() != reflect.Func {
-		return ErrNotAFunction
-	}
-	numIn := ft.NumIn()
-	if numIn != len(subcmd.Params)+2 {
-		return NumParamsErr{Want: len(subcmd.Params) + 2, Got: numIn}
-	}
 
-	if !reflect.TypeOf(context.Background()).AssignableTo(ft.In(0)) {
-		return ErrNoContext
-	}
-	if !reflect.TypeOf([]string(nil)).AssignableTo(ft.In(numIn - 1)) {
-		return ErrNoStringSlice
+	wantFuncTypeErr, wantFuncTypeNoErr := funcTypeForParams(subcmd.Params)
+	switch ft {
+	case wantFuncTypeErr, wantFuncTypeNoErr:
+		// ok
+
+	default:
+		return FuncTypeErr{Want: wantFuncTypeErr, Got: ft}
 	}
 
 	for i, param := range subcmd.Params {
-		if err := checkParam(ft, i+1, param.Type); err != nil {
+		if err := checkParam(param); err != nil {
 			return errors.Wrapf(err, "checking parameter %d", i+1)
 		}
-	}
-
-	numOut := ft.NumOut()
-	switch numOut {
-	case 0:
-		// ok
-	case 1:
-		if !ft.Out(0).Implements(errType) {
-			return ErrNotError
-		}
-	default:
-		return ErrTooManyReturns
 	}
 
 	return nil
 }
 
-var (
-	// ErrNotAFunction means the F field of a Subcmd is not a function.
-	ErrNotAFunction = errors.New("not a function")
+func checkParam(param Param) error {
+	if !reflect.TypeOf(param.Default).AssignableTo(param.Type.reflectType()) {
+		return ParamDefaultErr{Param: param}
+	}
 
-	// ErrNotError is returned by Check if the F field of a Subcmd returns a value that is not an error.
-	ErrNotError = errors.New("function returns non-error")
-
-	// ErrTooManyReturns is returned by Check if the F field of a Subcmd returns more than one value.
-	ErrTooManyReturns = errors.New("function returns too many values")
-
-	// ErrNoContext is returned by Check if the F field of a Subcmd does not take an initial context.Context parameter.
-	ErrNoContext = errors.New("parameter 0 is not context.Context")
-
-	// ErrNoStringSlice is returned by Check if the F field of a Subcmd does not take a final []string parameter.
-	ErrNoStringSlice = errors.New("last parameter is not []string")
-)
+	return nil
+}
 
 // CheckMap calls Check on each of the entries in the Map.
 func CheckMap(m Map) error {
@@ -87,82 +57,18 @@ func CheckMap(m Map) error {
 	return nil
 }
 
-func checkParam(ft reflect.Type, n int, want Type) error {
-	var (
-		paramType = ft.In(n)
-		argType   reflect.Type
-	)
-
-	switch want {
-	case Bool:
-		var x bool
-		argType = reflect.TypeOf(x)
-
-	case Int:
-		var x int
-		argType = reflect.TypeOf(x)
-
-	case Int64:
-		var x int64
-		argType = reflect.TypeOf(x)
-
-	case Uint:
-		var x uint
-		argType = reflect.TypeOf(x)
-
-	case Uint64:
-		var x uint64
-		argType = reflect.TypeOf(x)
-
-	case String:
-		var x string
-		argType = reflect.TypeOf(x)
-
-	case Float64:
-		var x float64
-		argType = reflect.TypeOf(x)
-
-	case Duration:
-		var x time.Duration
-		argType = reflect.TypeOf(x)
-
-	default:
-		return fmt.Errorf("unknown type %v", want)
+func funcTypeForParams(params []Param) (withErr, withoutErr reflect.Type) {
+	in := []reflect.Type{ctxType}
+	for _, param := range params {
+		in = append(in, param.Type.reflectType())
 	}
+	in = append(in, reflect.TypeOf([]string(nil)))
 
-	if !argType.AssignableTo(paramType) {
-		return ParamTypeErr{N: n, Want: want, Got: paramType}
-	}
+	withoutErr = reflect.FuncOf(in, nil, false)
 
-	return nil
-}
+	out := []reflect.Type{errType}
 
-// ParamTypeErr is returned by Check if the type of a parameter in a Subcmd's function doesn't match the corresponding Param.Type field.
-type ParamTypeErr struct {
-	// N is the parameter number. The initial context.Context is parameter 0.
-	N int
+	withErr = reflect.FuncOf(in, out, false)
 
-	// Got is the type of the parameter in the function.
-	Got reflect.Type
-
-	// Want is the type specified in the Param.Type field.
-	Want Type
-}
-
-func (e ParamTypeErr) Error() string {
-	return fmt.Sprintf("parameter %d has type %v, want %v", e.N, e.Got, e.Want)
-}
-
-// NumParamsErr is returned by Check if the number of parameters in a Subcmd's function doesn't match the number of Param fields
-// (plus two for the initial context.Context and final []string).
-type NumParamsErr struct {
-	// Got is the number of parameters in the function.
-	Got int
-
-	// Want is the number of parameters expected based on the length of Subcmd.Params.
-	Want int
-}
-
-func (e NumParamsErr) Error() string {
-	return fmt.Sprintf("function has %d parameters, want %d", e.Got, e.Want)
+	return withErr, withoutErr
 }

@@ -74,32 +74,24 @@ func TestCheckOneArg(t *testing.T) {
 			}
 
 			t.Run("one", func(t *testing.T) {
-				if err := Check(Subcmd{F: fOK, Params: []Param{{Type: ptyp}}}); err != nil {
+				if err := Check(Subcmd{F: fOK, Params: []Param{{Type: ptyp, Default: dflts[ptyp]}}}); err != nil {
 					t.Error(err)
 				}
 			})
 
 			t.Run("toomany", func(t *testing.T) {
-				err := Check(Subcmd{F: fTooMany, Params: []Param{{Type: ptyp}}})
-				var npErr NumParamsErr
-				if errors.As(err, &npErr) {
-					if npErr.Got != 4 || npErr.Want != 3 {
-						t.Errorf("got got=%d, want=%d, want got=4, want=3", npErr.Got, npErr.Want)
-					}
-				} else {
-					t.Errorf("got %v, want NumParamsErr", err)
+				err := Check(Subcmd{F: fTooMany, Params: []Param{{Type: ptyp, Default: dflts[ptyp]}}})
+				var e FuncTypeErr
+				if !errors.As(err, &e) {
+					t.Errorf("got %v, want FuncTypeErr", err)
 				}
 			})
 
 			t.Run("toofew", func(t *testing.T) {
-				err := Check(Subcmd{F: func(context.Context, []string) {}, Params: []Param{{Type: ptyp}}})
-				var npErr NumParamsErr
-				if errors.As(err, &npErr) {
-					if npErr.Got != 2 || npErr.Want != 3 {
-						t.Errorf("got got=%d, want=%d, want got=2, want=3", npErr.Got, npErr.Want)
-					}
-				} else {
-					t.Errorf("got %v, want NumParamsErr", err)
+				err := Check(Subcmd{F: func(context.Context, []string) {}, Params: []Param{{Type: ptyp, Default: dflts[ptyp]}}})
+				var e FuncTypeErr
+				if !errors.As(err, &e) {
+					t.Errorf("got %v, want FuncTypeErr", err)
 				}
 			})
 
@@ -108,21 +100,12 @@ func TestCheckOneArg(t *testing.T) {
 					if ptyp2 == ptyp {
 						continue
 					}
+
 					t.Run(ptyp2.String(), func(t *testing.T) {
-						err := Check(Subcmd{F: fOK, Params: []Param{{Type: ptyp2}}})
-						var ptErr ParamTypeErr
-						if errors.As(err, &ptErr) {
-							if ptErr.N != 1 {
-								t.Errorf("got N=%d, want N=1", ptErr.N)
-							}
-							if ptErr.Want != ptyp2 {
-								t.Errorf("got Want=%v, want Want=%v", ptErr.Want, ptyp2)
-							}
-							if rt := ptyp.reflectType(); ptErr.Got != rt {
-								t.Errorf("got Got=%v, want Got=%v", ptErr.Got, rt)
-							}
-						} else {
-							t.Errorf("got %v, want ParamTypeErr", err)
+						err := Check(Subcmd{F: fOK, Params: []Param{{Type: ptyp2, Default: dflts[ptyp2]}}})
+						var e FuncTypeErr
+						if !errors.As(err, &e) {
+							t.Errorf("got %v, want FuncTypeErr", err)
 						}
 					})
 				}
@@ -132,31 +115,69 @@ func TestCheckOneArg(t *testing.T) {
 }
 
 func TestCheckNotFunc(t *testing.T) {
-	if err := Check(Subcmd{F: 42}); !errors.Is(err, ErrNotAFunction) {
-		t.Errorf("got %v, want ErrNotAFunction", err)
+	var e FuncTypeErr
+	if err := Check(Subcmd{F: 42}); !errors.As(err, &e) {
+		t.Errorf("got %v, want FuncTypeErr", err)
 	}
 }
 
 func TestCheckNoContext(t *testing.T) {
-	if err := Check(Subcmd{F: func(int, []string) {}}); !errors.Is(err, ErrNoContext) {
+	var e FuncTypeErr
+	if err := Check(Subcmd{F: func(int, []string) {}}); !errors.As(err, &e) {
 		t.Errorf("got %v, want ErrNoContext", err)
 	}
 }
 
 func TestCheckNoStringSlice(t *testing.T) {
-	if err := Check(Subcmd{F: func(context.Context, int) {}}); !errors.Is(err, ErrNoStringSlice) {
+	var e FuncTypeErr
+	if err := Check(Subcmd{F: func(context.Context, int) {}}); !errors.As(err, &e) {
 		t.Errorf("got %v, want ErrNoStringSlice", err)
 	}
 }
 
 func TestCheckNoError(t *testing.T) {
-	if err := Check(Subcmd{F: func(context.Context, []string) int { return 0 }}); !errors.Is(err, ErrNotError) {
+	var e FuncTypeErr
+	if err := Check(Subcmd{F: func(context.Context, []string) int { return 0 }}); !errors.As(err, &e) {
 		t.Errorf("got %v, want ErrNotError", err)
 	}
 }
 
 func TestTooManyReturns(t *testing.T) {
-	if err := Check(Subcmd{F: func(context.Context, []string) (int, int) { return 0, 0 }}); !errors.Is(err, ErrTooManyReturns) {
+	var e FuncTypeErr
+	if err := Check(Subcmd{F: func(context.Context, []string) (int, int) { return 0, 0 }}); !errors.As(err, &e) {
 		t.Errorf("got %v, want ErrTooManyReturns", err)
 	}
+}
+
+func TestCheckParam(t *testing.T) {
+	for ptyp := Bool; ptyp <= Duration; ptyp++ {
+		t.Run(ptyp.String(), func(t *testing.T) {
+			for ptyp2 := Bool; ptyp2 <= Duration; ptyp2++ {
+				t.Run(ptyp2.String(), func(t *testing.T) {
+					err := checkParam(Param{Type: ptyp, Default: dflts[ptyp2]})
+					if ptyp == ptyp2 {
+						if err != nil {
+							t.Error(err)
+						}
+					} else {
+						var e ParamDefaultErr
+						if !errors.As(err, &e) {
+							t.Errorf("got %v, want ParamDefaultErr", err)
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
+var dflts = map[Type]interface{}{
+	Bool:     false,
+	Int:      0,
+	Int64:    int64(0),
+	Uint:     uint(0),
+	Uint64:   uint64(0),
+	String:   "",
+	Float64:  float64(0),
+	Duration: time.Duration(0),
 }

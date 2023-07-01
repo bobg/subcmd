@@ -14,7 +14,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-var errType = reflect.TypeOf((*error)(nil)).Elem()
+var (
+	errType = reflect.TypeOf((*error)(nil)).Elem()
+	ctxType = reflect.TypeOf((*context.Context)(nil)).Elem()
+)
 
 // Cmd is a command that has subcommands.
 // It tells Run how to parse its subcommands, and their flags and positional parameters,
@@ -380,11 +383,17 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 
 	fv := reflect.ValueOf(subcmd.F)
 	ft := fv.Type()
-	if ft.Kind() != reflect.Func {
-		return ErrNotAFunction
+
+	wantFuncTypeErr, wantFuncTypeNoErr := funcTypeForParams(subcmd.Params)
+	switch ft {
+	case wantFuncTypeErr, wantFuncTypeNoErr:
+		// ok
+	default:
+		return FuncTypeErr{Got: ft, Want: wantFuncTypeErr}
 	}
+
 	if numIn := ft.NumIn(); numIn != len(argvals) {
-		return NumParamsErr{Got: numIn, Want: len(argvals)}
+		return NumArgsErr{Got: len(argvals), Want: numIn}
 	}
 	for i, argval := range argvals {
 		if !argval.Type().AssignableTo(ft.In(i)) {
@@ -392,17 +401,9 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 		}
 	}
 
-	numOut := ft.NumOut()
-	if numOut > 1 {
-		return ErrTooManyReturns
-	}
-	if numOut == 1 && !ft.Out(0).Implements(errType) {
-		return ErrNotError
-	}
-
 	rv := fv.Call(argvals)
 
-	if numOut == 1 {
+	if ft.NumOut() == 1 {
 		err, _ = rv[0].Interface().(error)
 	}
 
