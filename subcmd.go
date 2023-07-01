@@ -392,9 +392,8 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 		return FuncTypeErr{Got: ft, Want: wantFuncTypeErr}
 	}
 
-	if numIn := ft.NumIn(); numIn != len(argvals) {
-		return NumArgsErr{Got: len(argvals), Want: numIn}
-	}
+	// Assert: len(argvals) == ft.NumIn()
+
 	for i, argval := range argvals {
 		if !argval.Type().AssignableTo(ft.In(i)) {
 			return fmt.Errorf("type of arg %d is %s, want %s", i, ft.In(i), argval.Type())

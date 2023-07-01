@@ -232,19 +232,6 @@ func (e FuncTypeErr) Error() string {
 	return fmt.Sprintf("function has type %v, want %v", e.Got, e.Want)
 }
 
-// NumArgsErr is the error when too many or too few arguments are supplied to Run for a Subcmd's function.
-type NumArgsErr struct {
-	// Got is the number of arguments supplied.
-	Got int
-
-	// Want is the number of function parameters expected.
-	Want int
-}
-
-func (e NumArgsErr) Error() string {
-	return fmt.Sprintf("got %d arguments but function takes %d parameters", e.Got, e.Want)
-}
-
 // ParamDefaultErr is the error when a Param has a default value that is not of the correct type.
 type ParamDefaultErr struct {
 	Param Param
