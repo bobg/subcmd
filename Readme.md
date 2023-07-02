@@ -17,13 +17,20 @@ command -globalopt subcommand -subopt1 FOO -subopt2 ARG1 ARG2
 
 Subcommands may have sub-subcommands and so on.
 Subcommands may also be implemented as separate executables.
-(See the documentation for [Prefixer](https://pkg.go.dev/github.com/bobg/subcmd/v2#Prefixer).)
 
 This is a layer on top of the standard Go `flag` package.
 
 ## Usage
 
 ```go
+import (
+  "context"
+  "database/sql"
+  "flag"
+
+  "github.com/bobg/subcmd/v2"
+)
+
 func main() {
   // Parse global flags normally.
   dbname := flag.String("db", "", "database connection string")
