@@ -4,6 +4,7 @@ package subcmd
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -15,9 +16,11 @@ import (
 )
 
 var (
-	errType = reflect.TypeOf((*error)(nil)).Elem()
-	ctxType = reflect.TypeOf((*context.Context)(nil)).Elem()
-	strType = reflect.TypeOf("")
+	ctxType      = reflect.TypeOf((*context.Context)(nil)).Elem()
+	errType      = reflect.TypeOf((*error)(nil)).Elem()
+	strSliceType = reflect.TypeOf([]string(nil))
+	strType      = reflect.TypeOf("")
+	valueType    = reflect.TypeOf((*flag.Value)(nil)).Elem()
 )
 
 // Cmd is a command that has subcommands.
@@ -94,6 +97,10 @@ type Param struct {
 
 	// Default is a default value for the parameter.
 	// Its type must be suitable for Type.
+	// As a special case,
+	// if Type is Value,
+	// then Default must be a flag.Value
+	// which encodes its own default.
 	Default interface{}
 
 	// Doc is a docstring for the parameter.
@@ -114,6 +121,7 @@ const (
 	String
 	Float64
 	Duration
+	Value
 )
 
 // String returns the name of t.
@@ -135,6 +143,8 @@ func (t Type) String() string {
 		return "float64"
 	case Duration:
 		return "time.Duration"
+	case Value:
+		return "flag.Value"
 	default:
 		return fmt.Sprintf("unknown type %d", t)
 	}
@@ -158,6 +168,8 @@ func (t Type) reflectType() reflect.Type {
 		return reflect.TypeOf(float64(0))
 	case Duration:
 		return reflect.TypeOf(time.Duration(0))
+	case Value:
+		return valueType
 	default:
 		panic(fmt.Sprintf("unknown type %d", t))
 	}

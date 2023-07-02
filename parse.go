@@ -30,7 +30,11 @@ func parseArgs(ctx context.Context, params []Param, args []string, variadic bool
 
 	argvals := []reflect.Value{reflect.ValueOf(ctx)}
 	for _, ptr := range ptrs {
-		argvals = append(argvals, ptr.Elem())
+		if ptr.Type().Implements(valueType) {
+			argvals = append(argvals, ptr)
+		} else {
+			argvals = append(argvals, ptr.Elem())
+		}
 	}
 
 	for _, p := range positional {
@@ -80,6 +84,9 @@ func parsePositionalArg(p Param, args *[]string, argvals *[]reflect.Value) error
 
 	case Duration:
 		return parseDurationPos(args, argvals, p)
+
+	case Value:
+		return parseValuePos(args, argvals, p)
 
 	default:
 		return fmt.Errorf("unknown arg type %v", p.Type)
@@ -242,6 +249,21 @@ func parseDurationPos(args *[]string, argvals *[]reflect.Value, p Param) error {
 	return nil
 }
 
+func parseValuePos(args *[]string, argvals *[]reflect.Value, p Param) error {
+	val, ok := p.Default.(flag.Value)
+	if !ok {
+		return ParseErr{Err: fmt.Errorf("param %s is not a flag.Value", p.Name)}
+	}
+	if len(*args) > 0 {
+		if err := val.Set((*args)[0]); err != nil {
+			return ParseErr{Err: err}
+		}
+		*args = (*args)[1:]
+	}
+	*argvals = append(*argvals, reflect.ValueOf(val))
+	return nil
+}
+
 // ToFlagSet produces a *flag.FlagSet from the given params,
 // plus a list of properly typed pointers in which to store the results of calling Parse on the FlagSet,
 // and a list of positional Params that are not part of the resulting FlagSet.
@@ -294,8 +316,18 @@ func ToFlagSet(params []Param) (fs *flag.FlagSet, ptrs []reflect.Value, position
 			dflt, _ := p.Default.(time.Duration)
 			v = fs.Duration(name, dflt, p.Doc)
 
+		case Value:
+			val, ok := p.Default.(flag.Value)
+			if !ok {
+				err = fmt.Errorf("param %s has type Value but default value %v is not a flag.Value", p.Name, p.Default)
+				return
+			}
+			fs.Var(val, name, p.Doc)
+			v = val
+
 		default:
-			return nil, nil, nil, fmt.Errorf("unknown arg type %v", p.Type)
+			err = fmt.Errorf("unknown arg type %v", p.Type)
+			return
 		}
 
 		ptrs = append(ptrs, reflect.ValueOf(v))

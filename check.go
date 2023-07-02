@@ -40,7 +40,7 @@ func checkFuncType(ft reflect.Type, params []Param) error {
 	for _, param := range params {
 		in = append(in, param.Type.reflectType())
 	}
-	in = append(in, reflect.TypeOf([]string(nil)))
+	in = append(in, strSliceType)
 
 	out := []reflect.Type{errType}
 
