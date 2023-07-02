@@ -225,7 +225,7 @@ type FuncTypeErr struct {
 	// Note: there are four variations on this type:
 	// variadic vs. non-variadic, and error-returning vs. non-error-returning.
 	// FuncTypeErr means a function matched none of those types,
-	// but for simplicity Want returns only one of them
+	// but for simplicity Want contains only one of them
 	// (the non-variadic, error-returning one).
 	Want reflect.Type
 }

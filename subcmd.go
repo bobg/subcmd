@@ -57,12 +57,20 @@ func subcmdNames(c Cmd) []string {
 }
 
 // Subcmd is one subcommand of a Cmd.
+//
+// The function Check can be used to check that F and the default values in Params
+// match the types specified in Params.
 type Subcmd struct {
 	// F is the function implementing the subcommand.
-	// Its signature must be func(context.Context, ..., []string) error,
-	// where the number and types of parameters between the context and the string slice
-	// is given by Params.
-	// The error return is optional.
+	// Its signature must be one of the following:
+	//
+	//   - func(context.Context, OPTS, []string)
+	//   - func(context.Context, OPTS, []string) error
+	//   - func(context.Context, OPTS, ...string)
+	//   - func(context.Context, OPTS, ...string) error
+	//
+	// where OPTS stands for a sequence of zero or more additional parameters
+	// corresponding to the types in Params.
 	F interface{}
 
 	// Params describes the parameters to F
@@ -172,6 +180,7 @@ func (t Type) reflectType() reflect.Type {
 //   - the list of parameters for the function, a slice of Param (which can be produced with the Params function).
 //
 // These are used to populate a Subcmd.
+// See Subcmd for a description of the requirements on the implementing function.
 //
 // A call like this:
 //
@@ -284,7 +293,7 @@ func Params(a ...interface{}) []Param {
 // The remaining values in args are parsed to populate those.
 //
 // After argument parsing,
-// the subcommand's function is invoked with a context object,
+// the subcommand's function is invoked with the given context object,
 // the flag and parameter values,
 // and a slice of the args remaining.
 //
@@ -306,6 +315,8 @@ func Params(a ...interface{}) []Param {
 //
 // If c is a Prefixer and the subcommand name is both unknown and not "help",
 // then an executable is sought in $PATH with c's prefix plus the subcommand name.
+// (For example, if c.Prefix() returns "foo-" and the subcommand name is "bar",
+// then the executable "foo-bar" is sought.)
 // If one is found,
 // it is executed with the remaining args as arguments,
 // and a JSON-marshaled copy of c in the environment variable SUBCMD_ENV

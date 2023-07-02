@@ -12,7 +12,7 @@ import (
 //   - It must return no more than one value;
 //   - If it returns a value, that value must be of type error;
 //   - It must take an initial context.Context parameter;
-//   - It must take a final []string parameter;
+//   - It must take a final []string or ...string parameter;
 //   - The length of subcmd.Params must match the number of parameters subcmd.F takes (not counting the initial context.Context and final []string parameters);
 //   - Each parameter in subcmd.Params must match the corresponding parameter in subcmd.F.
 //
