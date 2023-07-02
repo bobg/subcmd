@@ -21,13 +21,8 @@ func Check(subcmd Subcmd) error {
 	fv := reflect.ValueOf(subcmd.F)
 	ft := fv.Type()
 
-	wantFuncTypeErr, wantFuncTypeNoErr := funcTypeForParams(subcmd.Params)
-	switch ft {
-	case wantFuncTypeErr, wantFuncTypeNoErr:
-		// ok
-
-	default:
-		return FuncTypeErr{Want: wantFuncTypeErr, Got: ft}
+	if err := checkFuncType(ft, subcmd.Params); err != nil {
+		return err
 	}
 
 	for i, param := range subcmd.Params {
@@ -36,6 +31,31 @@ func Check(subcmd Subcmd) error {
 		}
 	}
 
+	return nil
+}
+
+func checkFuncType(ft reflect.Type, params []Param) error {
+	in := make([]reflect.Type, 0, 2+len(params))
+	in = append(in, ctxType)
+	for _, param := range params {
+		in = append(in, param.Type.reflectType())
+	}
+	in = append(in, reflect.TypeOf([]string(nil)))
+
+	out := []reflect.Type{errType}
+
+	if ft == reflect.FuncOf(in, nil, true) {
+		return nil
+	}
+	if ft == reflect.FuncOf(in, out, true) {
+		return nil
+	}
+	if ft == reflect.FuncOf(in, nil, false) {
+		return nil
+	}
+	if want := reflect.FuncOf(in, out, false); ft != want {
+		return FuncTypeErr{Got: ft, Want: want}
+	}
 	return nil
 }
 
@@ -55,20 +75,4 @@ func CheckMap(m Map) error {
 		}
 	}
 	return nil
-}
-
-func funcTypeForParams(params []Param) (withErr, withoutErr reflect.Type) {
-	in := []reflect.Type{ctxType}
-	for _, param := range params {
-		in = append(in, param.Type.reflectType())
-	}
-	in = append(in, reflect.TypeOf([]string(nil)))
-
-	withoutErr = reflect.FuncOf(in, nil, false)
-
-	out := []reflect.Type{errType}
-
-	withErr = reflect.FuncOf(in, out, false)
-
-	return withErr, withoutErr
 }

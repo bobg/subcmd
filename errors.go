@@ -222,9 +222,11 @@ type FuncTypeErr struct {
 	Got reflect.Type
 
 	// Want is the expected function type implied by the Params field.
-	// Note: for simplicity, this includes the optional error return,
-	// even if the type in Got does not
-	// (which is not, in itself, an error).
+	// Note: there are four variations on this type:
+	// variadic vs. non-variadic, and error-returning vs. non-error-returning.
+	// FuncTypeErr means a function matched none of those types,
+	// but for simplicity Want returns only one of them
+	// (the non-variadic, error-returning one).
 	Want reflect.Type
 }
 

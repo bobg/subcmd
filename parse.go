@@ -12,8 +12,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-// The length of the resulting slice is len(params)+2.
-func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Value, error) {
+// If variadic is false, the length of the resulting slice is len(params)+2.
+// If it's true, the length is >= len(params)+1.
+func parseArgs(ctx context.Context, params []Param, args []string, variadic bool) ([]reflect.Value, error) {
 	fs, ptrs, positional, err := ToFlagSet(params)
 	if err != nil {
 		return nil, err
@@ -39,7 +40,13 @@ func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Va
 		}
 	}
 
-	argvals = append(argvals, reflect.ValueOf(args))
+	if variadic {
+		for _, arg := range args {
+			argvals = append(argvals, reflect.ValueOf(arg))
+		}
+	} else {
+		argvals = append(argvals, reflect.ValueOf(args))
+	}
 
 	return argvals, nil
 }
@@ -236,13 +243,12 @@ func parseDurationPos(args *[]string, argvals *[]reflect.Value, p Param) error {
 }
 
 // ToFlagSet produces a *flag.FlagSet from the given params,
-// plus a list of properly typed pointers in which to store the result of calling Parse on the FlagSet.
-func ToFlagSet(params []Param) (*flag.FlagSet, []reflect.Value, []Param, error) {
-	var (
-		fs         = flag.NewFlagSet("", flag.ContinueOnError)
-		ptrs       []reflect.Value
-		positional []Param
-	)
+// plus a list of properly typed pointers in which to store the results of calling Parse on the FlagSet,
+// and a list of positional Params that are not part of the resulting FlagSet.
+//
+// On a successful return, len(ptrs)+len(positional) == len(params).
+func ToFlagSet(params []Param) (fs *flag.FlagSet, ptrs []reflect.Value, positional []Param, err error) {
+	fs = flag.NewFlagSet("", flag.ContinueOnError)
 
 	for _, p := range params {
 		if !strings.HasPrefix(p.Name, "-") {
@@ -251,7 +257,7 @@ func ToFlagSet(params []Param) (*flag.FlagSet, []reflect.Value, []Param, error) 
 		}
 
 		var (
-			name = p.Name[1:]
+			name = strings.TrimLeft(p.Name, "-")
 			v    interface{}
 		)
 

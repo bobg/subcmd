@@ -149,7 +149,7 @@ func TestParseErr(t *testing.T) {
 	err := Run(context.Background(), errtestcmd{}, []string{"a", "x"})
 	var perr ParseErr
 	if !errors.As(err, &perr) {
-		t.Errorf("got %T, want *ParseErr", err)
+		t.Errorf("got %v, want *ParseErr", err)
 	}
 }
 
@@ -169,6 +169,6 @@ func (errtestcmd) Subcmds() Map {
 	)
 }
 
-func errtestA(_ context.Context, _ []string) error { return nil }
-func errtestB(_ context.Context, _ []string) error { return nil }
-func errtestC(_ context.Context, _ []string) error { return nil }
+func errtestA(context.Context, bool, int, string, time.Duration, bool, []string) error { return nil }
+func errtestB(_ context.Context, _ []string) error                                     { return nil }
+func errtestC(_ context.Context, _ []string) error                                     { return nil }

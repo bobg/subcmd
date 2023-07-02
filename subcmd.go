@@ -17,6 +17,7 @@ import (
 var (
 	errType = reflect.TypeOf((*error)(nil)).Elem()
 	ctxType = reflect.TypeOf((*context.Context)(nil)).Elem()
+	strType = reflect.TypeOf("")
 )
 
 // Cmd is a command that has subcommands.
@@ -376,26 +377,28 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 
 	ctx = addSubcmdPair(ctx, name, subcmd)
 
-	argvals, err := parseArgs(ctx, subcmd.Params, args)
-	if err != nil {
-		return err
-	}
-
 	fv := reflect.ValueOf(subcmd.F)
 	ft := fv.Type()
 
-	wantFuncTypeErr, wantFuncTypeNoErr := funcTypeForParams(subcmd.Params)
-	switch ft {
-	case wantFuncTypeErr, wantFuncTypeNoErr:
-		// ok
-	default:
-		return FuncTypeErr{Got: ft, Want: wantFuncTypeErr}
+	if err := checkFuncType(ft, subcmd.Params); err != nil {
+		return errors.Wrap(err, "checking function type")
 	}
 
-	// Assert: len(argvals) == ft.NumIn()
+	variadic := ft.IsVariadic()
+
+	argvals, err := parseArgs(ctx, subcmd.Params, args, variadic)
+	if err != nil {
+		return errors.Wrap(err, "marshaling args")
+	}
+
+	numIn := ft.NumIn()
 
 	for i, argval := range argvals {
-		if !argval.Type().AssignableTo(ft.In(i)) {
+		if variadic && i >= (numIn-1) {
+			if !argval.Type().AssignableTo(strType) {
+				return fmt.Errorf("type of arg %d is %s, want string", i, argval.Type())
+			}
+		} else if !argval.Type().AssignableTo(ft.In(i)) {
 			return fmt.Errorf("type of arg %d is %s, want %s", i, ft.In(i), argval.Type())
 		}
 	}
