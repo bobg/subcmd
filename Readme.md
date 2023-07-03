@@ -1,7 +1,7 @@
 # Subcmd - command-line interfaces with subcommands and flags
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/bobg/subcmd.svg)](https://pkg.go.dev/github.com/bobg/subcmd)
-[![Go Report Card](https://goreportcard.com/badge/github.com/bobg/subcmd)](https://goreportcard.com/report/github.com/bobg/subcmd)
+[![Go Reference](https://pkg.go.dev/badge/github.com/bobg/subcmd/v2.svg)](https://pkg.go.dev/github.com/bobg/subcmd/v2)
+[![Go Report Card](https://goreportcard.com/badge/github.com/bobg/subcmd/v2)](https://goreportcard.com/report/github.com/bobg/subcmd/v2)
 [![Tests](https://github.com/bobg/subcmd/actions/workflows/go.yml/badge.svg)](https://github.com/bobg/subcmd/actions/workflows/go.yml)
 [![Coverage Status](https://coveralls.io/repos/github/bobg/subcmd/badge.svg?branch=master)](https://coveralls.io/github/bobg/subcmd?branch=master)
 
