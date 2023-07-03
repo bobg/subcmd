@@ -1,7 +1,7 @@
 # Subcmd - command-line interfaces with subcommands and flags
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/bobg/subcmd.svg)](https://pkg.go.dev/github.com/bobg/subcmd)
-[![Go Report Card](https://goreportcard.com/badge/github.com/bobg/subcmd)](https://goreportcard.com/report/github.com/bobg/subcmd)
+[![Go Reference](https://pkg.go.dev/badge/github.com/bobg/subcmd/v2.svg)](https://pkg.go.dev/github.com/bobg/subcmd/v2)
+[![Go Report Card](https://goreportcard.com/badge/github.com/bobg/subcmd/v2)](https://goreportcard.com/report/github.com/bobg/subcmd/v2)
 [![Tests](https://github.com/bobg/subcmd/actions/workflows/go.yml/badge.svg)](https://github.com/bobg/subcmd/actions/workflows/go.yml)
 [![Coverage Status](https://coveralls.io/repos/github/bobg/subcmd/badge.svg?branch=master)](https://coveralls.io/github/bobg/subcmd?branch=master)
 
@@ -17,13 +17,20 @@ command -globalopt subcommand -subopt1 FOO -subopt2 ARG1 ARG2
 
 Subcommands may have sub-subcommands and so on.
 Subcommands may also be implemented as separate executables.
-(See the documentation for [Prefixer](https://pkg.go.dev/github.com/bobg/subcmd/v2#Prefixer).)
 
 This is a layer on top of the standard Go `flag` package.
 
 ## Usage
 
 ```go
+import (
+  "context"
+  "database/sql"
+  "flag"
+
+  "github.com/bobg/subcmd/v2"
+)
+
 func main() {
   // Parse global flags normally.
   dbname := flag.String("db", "", "database connection string")

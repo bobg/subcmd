@@ -16,7 +16,7 @@ func withFlagSet(ctx context.Context, fs *flag.FlagSet) context.Context {
 	return context.WithValue(ctx, fsKey, fs)
 }
 
-// FlagSet produces the *flag.FlagSet used in a call to a Subcmd function.
+// FlagSet produces the [flag.FlagSet] used in a call to a [Subcmd] function.
 func FlagSet(ctx context.Context) *flag.FlagSet {
 	val := ctx.Value(fsKey)
 	return val.(*flag.FlagSet)

@@ -12,8 +12,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-// The length of the resulting slice is len(params)+2.
-func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Value, error) {
+// If variadic is false, the length of the resulting slice is len(params)+2.
+// If it's true, the length is >= len(params)+1.
+func parseArgs(ctx context.Context, params []Param, args []string, variadic bool) ([]reflect.Value, error) {
 	fs, ptrs, positional, err := ToFlagSet(params)
 	if err != nil {
 		return nil, err
@@ -29,7 +30,11 @@ func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Va
 
 	argvals := []reflect.Value{reflect.ValueOf(ctx)}
 	for _, ptr := range ptrs {
-		argvals = append(argvals, ptr.Elem())
+		if ptr.Type().Implements(valueType) {
+			argvals = append(argvals, ptr)
+		} else {
+			argvals = append(argvals, ptr.Elem())
+		}
 	}
 
 	for _, p := range positional {
@@ -39,7 +44,13 @@ func parseArgs(ctx context.Context, params []Param, args []string) ([]reflect.Va
 		}
 	}
 
-	argvals = append(argvals, reflect.ValueOf(args))
+	if variadic {
+		for _, arg := range args {
+			argvals = append(argvals, reflect.ValueOf(arg))
+		}
+	} else {
+		argvals = append(argvals, reflect.ValueOf(args))
+	}
 
 	return argvals, nil
 }
@@ -73,6 +84,9 @@ func parsePositionalArg(p Param, args *[]string, argvals *[]reflect.Value) error
 
 	case Duration:
 		return parseDurationPos(args, argvals, p)
+
+	case Value:
+		return parseValuePos(args, argvals, p)
 
 	default:
 		return fmt.Errorf("unknown arg type %v", p.Type)
@@ -235,14 +249,30 @@ func parseDurationPos(args *[]string, argvals *[]reflect.Value, p Param) error {
 	return nil
 }
 
-// ToFlagSet produces a *flag.FlagSet from the given params,
-// plus a list of properly typed pointers in which to store the result of calling Parse on the FlagSet.
-func ToFlagSet(params []Param) (*flag.FlagSet, []reflect.Value, []Param, error) {
-	var (
-		fs         = flag.NewFlagSet("", flag.ContinueOnError)
-		ptrs       []reflect.Value
-		positional []Param
-	)
+func parseValuePos(args *[]string, argvals *[]reflect.Value, p Param) error {
+	val, ok := p.Default.(flag.Value)
+	if !ok {
+		return ParseErr{Err: fmt.Errorf("param %s is not a flag.Value", p.Name)}
+	}
+	if len(*args) > 0 {
+		if err := val.Set((*args)[0]); err != nil {
+			return ParseErr{Err: err}
+		}
+		*args = (*args)[1:]
+	}
+	*argvals = append(*argvals, reflect.ValueOf(val))
+	return nil
+}
+
+// ToFlagSet takes a slice of [Param] and produces:
+//
+//   - a [flag.FlagSet],
+//   - a list of properly typed pointers (or in the case of a [Value]-typed Param, a [flag.Value]) in which to store the results of calling Parse on the FlagSet,
+//   - a list of positional [Param]s that are not part of the resulting FlagSet.
+//
+// On a successful return, len(ptrs)+len(positional) == len(params).
+func ToFlagSet(params []Param) (fs *flag.FlagSet, ptrs []reflect.Value, positional []Param, err error) {
+	fs = flag.NewFlagSet("", flag.ContinueOnError)
 
 	for _, p := range params {
 		if !strings.HasPrefix(p.Name, "-") {
@@ -251,7 +281,7 @@ func ToFlagSet(params []Param) (*flag.FlagSet, []reflect.Value, []Param, error) 
 		}
 
 		var (
-			name = p.Name[1:]
+			name = strings.TrimLeft(p.Name, "-")
 			v    interface{}
 		)
 
@@ -288,8 +318,18 @@ func ToFlagSet(params []Param) (*flag.FlagSet, []reflect.Value, []Param, error) 
 			dflt, _ := p.Default.(time.Duration)
 			v = fs.Duration(name, dflt, p.Doc)
 
+		case Value:
+			val, ok := p.Default.(flag.Value)
+			if !ok {
+				err = fmt.Errorf("param %s has type Value but default value %v is not a flag.Value", p.Name, p.Default)
+				return
+			}
+			fs.Var(val, name, p.Doc)
+			v = val
+
 		default:
-			return nil, nil, nil, fmt.Errorf("unknown arg type %v", p.Type)
+			err = fmt.Errorf("unknown arg type %v", p.Type)
+			return
 		}
 
 		ptrs = append(ptrs, reflect.ValueOf(v))
