@@ -34,7 +34,7 @@ type UsageErr interface {
 	Detail() string
 }
 
-// MissingSubcmdErr is a usage error returned when Run is called with an empty `args` list.
+// MissingSubcmdErr is a usage error returned when [Run] is called with an empty args list.
 type MissingSubcmdErr struct {
 	pairs []subcmdPair
 	cmd   Cmd
@@ -44,7 +44,7 @@ func (e *MissingSubcmdErr) Error() string {
 	return fmt.Sprintf("missing subcommand, want one of: %s", strings.Join(subcmdNames(e.cmd), "; "))
 }
 
-// Detail implements Usage.
+// Detail implements [Usage].
 func (e *MissingSubcmdErr) Detail() string {
 	return missingUnknownSubcmd("Missing subcommand, want one of:", e.cmd)
 }
@@ -99,7 +99,7 @@ func (e *HelpRequestedErr) Error() string {
 	return fmt.Sprintf("subcommands are: %s", strings.Join(subcmdNames(e.cmd), "; "))
 }
 
-// Detail implements Usage.
+// Detail implements [Usage].
 func (e *HelpRequestedErr) Detail() string {
 	if e.name != "" {
 		// foo bar help baz
@@ -182,7 +182,7 @@ func (e *HelpRequestedErr) Detail() string {
 	return b.String()
 }
 
-// UnknownSubcmdErr is a usage error returned when an unknown subcommand name is passed to Run as args[0].
+// UnknownSubcmdErr is a usage error returned when an unknown subcommand name is passed to [Run] as args[0].
 type UnknownSubcmdErr struct {
 	pairs []subcmdPair
 	cmd   Cmd
@@ -193,7 +193,7 @@ func (e *UnknownSubcmdErr) Error() string {
 	return fmt.Sprintf(`unknown subcommand "%s", want one of: %s`, e.name, strings.Join(subcmdNames(e.cmd), "; "))
 }
 
-// Detail implements Usage.
+// Detail implements [Usage].
 func (e *UnknownSubcmdErr) Detail() string {
 	return missingUnknownSubcmd(fmt.Sprintf(`Unknown subcommand "%s", want one of:`, e.name), e.cmd)
 }
@@ -216,7 +216,7 @@ func missingUnknownSubcmd(line1 string, cmd Cmd) string {
 	return b.String()
 }
 
-// FuncTypeErr means a Subcmd's F field has a type that does not match the function signature implied by its Params field.
+// FuncTypeErr means a [Subcmd]'s F field has a type that does not match the function signature implied by its Params field.
 type FuncTypeErr struct {
 	// Got is the type of the F field.
 	Got reflect.Type
@@ -234,7 +234,7 @@ func (e FuncTypeErr) Error() string {
 	return fmt.Sprintf("function has type %v, want %v", e.Got, e.Want)
 }
 
-// ParamDefaultErr is the error when a Param has a default value that is not of the correct type.
+// ParamDefaultErr is the error when a [Param] has a default value that is not of the correct type.
 type ParamDefaultErr struct {
 	Param Param
 }

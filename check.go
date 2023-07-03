@@ -67,7 +67,7 @@ func checkParam(param Param) error {
 	return nil
 }
 
-// CheckMap calls Check on each of the entries in the Map.
+// CheckMap calls [Check] on each of the entries in the Map.
 func CheckMap(m Map) error {
 	for name, subcmd := range m {
 		if err := Check(subcmd); err != nil {
