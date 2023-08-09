@@ -46,7 +46,7 @@ type Prefixer interface {
 	Prefix() string
 }
 
-// Map is the type of the data structure returned by [Cmd.Subcmds] and by [Commands].
+// Map is the type of the data structure returned by Cmd.Subcmds and by [Commands].
 // It maps a subcommand name to its [Subcmd] structure.
 type Map = map[string]Subcmd
 
@@ -61,7 +61,7 @@ func subcmdNames(c Cmd) []string {
 }
 
 // Subcmd is one subcommand of a [Cmd],
-// and the value type in the [Map] returned by [Cmd.Subcmds].
+// and the value type in the [Map] returned by Cmd.Subcmds.
 //
 // The function [Check] can be used to check that the type of the F field
 // is a function with parameters matching those specified by the Params field,
@@ -180,7 +180,7 @@ func (t Type) reflectType() reflect.Type {
 }
 
 // Commands is a convenience function for producing the [Map]
-// needed by an implementation of [Cmd.Subcmd].
+// needed by an implementation of Cmd.Subcmd.
 // It takes arguments in groups of two or four,
 // one group per subcommand.
 //

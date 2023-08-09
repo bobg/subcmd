@@ -268,7 +268,7 @@ func parseValuePos(args *[]string, argvals *[]reflect.Value, p Param) error {
 //
 //   - a [flag.FlagSet],
 //   - a list of properly typed pointers (or in the case of a [Value]-typed Param, a [flag.Value]) in which to store the results of calling Parse on the FlagSet,
-//   - a list of positional [Param]s that are not part of the resulting FlagSet.
+//   - a list of positional Params that are not part of the resulting FlagSet.
 //
 // On a successful return, len(ptrs)+len(positional) == len(params).
 func ToFlagSet(params []Param) (fs *flag.FlagSet, ptrs []reflect.Value, positional []Param, err error) {

@@ -44,7 +44,7 @@ func (e *MissingSubcmdErr) Error() string {
 	return fmt.Sprintf("missing subcommand, want one of: %s", strings.Join(subcmdNames(e.cmd), "; "))
 }
 
-// Detail implements [Usage].
+// Detail implements Usage.
 func (e *MissingSubcmdErr) Detail() string {
 	return missingUnknownSubcmd("Missing subcommand, want one of:", e.cmd)
 }
@@ -99,7 +99,7 @@ func (e *HelpRequestedErr) Error() string {
 	return fmt.Sprintf("subcommands are: %s", strings.Join(subcmdNames(e.cmd), "; "))
 }
 
-// Detail implements [Usage].
+// Detail implements Usage.
 func (e *HelpRequestedErr) Detail() string {
 	if e.name != "" {
 		// foo bar help baz
@@ -193,7 +193,7 @@ func (e *UnknownSubcmdErr) Error() string {
 	return fmt.Sprintf(`unknown subcommand "%s", want one of: %s`, e.name, strings.Join(subcmdNames(e.cmd), "; "))
 }
 
-// Detail implements [Usage].
+// Detail implements Usage.
 func (e *UnknownSubcmdErr) Detail() string {
 	return missingUnknownSubcmd(fmt.Sprintf(`Unknown subcommand "%s", want one of:`, e.name), e.cmd)
 }
