@@ -36,3 +36,19 @@ func TestSubcmdPairs(t *testing.T) {
 		}
 	}
 }
+
+func TestSuppressCheck(t *testing.T) {
+	ctx := context.Background()
+
+	if SuppressCheck(ctx) {
+		t.Error("SuppressCheck(ctx) is true, want false")
+	}
+	ctx2 := WithSuppressCheck(ctx, false)
+	if SuppressCheck(ctx2) {
+		t.Error("SuppressCheck(ctx2) is true, want false")
+	}
+	ctx3 := WithSuppressCheck(ctx, true)
+	if !SuppressCheck(ctx3) {
+		t.Error("SuppressCheck(ctx3) is false, want true")
+	}
+}
