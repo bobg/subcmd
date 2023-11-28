@@ -94,7 +94,10 @@ func parsePositionalArg(p Param, args *[]string, argvals *[]reflect.Value) error
 }
 
 func parseBoolPos(args *[]string, argvals *[]reflect.Value, p Param) error {
-	val, _ := p.Default.(bool)
+	val, ok := p.Default.(bool)
+	if !ok {
+		return ParseErr{Err: fmt.Errorf("param %s has type Bool but default value %v has type %T", p.Name, p.Default, p.Default)}
+	}
 	if len(*args) > 0 {
 		var err error
 		val, err = strconv.ParseBool((*args)[0])
@@ -108,10 +111,13 @@ func parseBoolPos(args *[]string, argvals *[]reflect.Value, p Param) error {
 }
 
 func parseIntPos(args *[]string, argvals *[]reflect.Value, p Param) error {
-	val := int64(asInt(p.Default)) // has to be int64 to receive the result of ParseInt below
+	valInt, err := asInt(p.Default)
+	if err != nil {
+		return ParseErr{Err: err}
+	}
+	val := int64(valInt) // has to be int64 to receive the result of ParseInt below
 
 	if len(*args) > 0 {
-		var err error
 		val, err = strconv.ParseInt((*args)[0], 10, 32)
 		if err != nil {
 			return ParseErr{Err: err}
@@ -123,10 +129,12 @@ func parseIntPos(args *[]string, argvals *[]reflect.Value, p Param) error {
 }
 
 func parseInt64Pos(args *[]string, argvals *[]reflect.Value, p Param) error {
-	val := asInt64(p.Default)
+	val, err := asInt64(p.Default)
+	if err != nil {
+		return ParseErr{Err: err}
+	}
 
 	if len(*args) > 0 {
-		var err error
 		val, err = strconv.ParseInt((*args)[0], 10, 64)
 		if err != nil {
 			return ParseErr{Err: err}
@@ -138,10 +146,13 @@ func parseInt64Pos(args *[]string, argvals *[]reflect.Value, p Param) error {
 }
 
 func parseUintPos(args *[]string, argvals *[]reflect.Value, p Param) error {
-	val := uint64(asUint(p.Default)) // has to be uint64 to receive the result of ParseUint below
+	valUint, err := asUint(p.Default)
+	if err != nil {
+		return ParseErr{Err: err}
+	}
+	val := uint64(valUint) // has to be uint64 to receive the result of ParseUint below
 
 	if len(*args) > 0 {
-		var err error
 		val, err = strconv.ParseUint((*args)[0], 10, 32)
 		if err != nil {
 			return ParseErr{Err: err}
@@ -153,10 +164,12 @@ func parseUintPos(args *[]string, argvals *[]reflect.Value, p Param) error {
 }
 
 func parseUint64Pos(args *[]string, argvals *[]reflect.Value, p Param) error {
-	val := asUint64(p.Default)
+	val, err := asUint64(p.Default)
+	if err != nil {
+		return ParseErr{Err: err}
+	}
 
 	if len(*args) > 0 {
-		var err error
 		val, err = strconv.ParseUint((*args)[0], 10, 64)
 		if err != nil {
 			return ParseErr{Err: err}
@@ -168,7 +181,10 @@ func parseUint64Pos(args *[]string, argvals *[]reflect.Value, p Param) error {
 }
 
 func parseStringPos(args *[]string, argvals *[]reflect.Value, p Param) error {
-	val, _ := p.Default.(string)
+	val, ok := p.Default.(string)
+	if !ok {
+		return ParseErr{Err: fmt.Errorf("param %s has type String but default value %v has type %T", p.Name, p.Default, p.Default)}
+	}
 	if len(*args) > 0 {
 		val = (*args)[0]
 		*args = (*args)[1:]
@@ -178,10 +194,12 @@ func parseStringPos(args *[]string, argvals *[]reflect.Value, p Param) error {
 }
 
 func parseFloat64Pos(args *[]string, argvals *[]reflect.Value, p Param) error {
-	val := asFloat64(p.Default)
+	val, err := asFloat64(p.Default)
+	if err != nil {
+		return ParseErr{Err: err}
+	}
 
 	if len(*args) > 0 {
-		var err error
 		val, err = strconv.ParseFloat((*args)[0], 64)
 		if err != nil {
 			return ParseErr{Err: err}
@@ -193,10 +211,12 @@ func parseFloat64Pos(args *[]string, argvals *[]reflect.Value, p Param) error {
 }
 
 func parseDurationPos(args *[]string, argvals *[]reflect.Value, p Param) error {
-	val := asDuration(p.Default)
+	val, err := asDuration(p.Default)
+	if err != nil {
+		return ParseErr{Err: err}
+	}
 
 	if len(*args) > 0 {
-		var err error
 		val, err = time.ParseDuration((*args)[0])
 		if err != nil {
 			return ParseErr{Err: err}
@@ -222,137 +242,175 @@ func parseValuePos(args *[]string, argvals *[]reflect.Value, p Param) error {
 	return nil
 }
 
-func asInt(val interface{}) int {
+func asInt(val interface{}) (int, error) {
 	switch v := val.(type) {
 	case int:
-		return v
+		return v, nil
 
 	case int8:
-		return int(v)
+		return int(v), nil
 	case int16:
-		return int(v)
+		return int(v), nil
 	case int32:
-		return int(v)
+		return int(v), nil
 
 	case uint8:
-		return int(v)
+		return int(v), nil
 	case uint16:
-		return int(v)
+		return int(v), nil
 	}
-	return 0
+
+	return 0, fmt.Errorf("cannot convert %v (type %T) to int", val, val)
 }
 
-func asInt64(val interface{}) int64 {
+func asInt64(val interface{}) (int64, error) {
 	switch v := val.(type) {
 	case int:
-		return int64(v)
+		return int64(v), nil
 	case int64:
-		return v
+		return v, nil
 
 	case int8:
-		return int64(v)
+		return int64(v), nil
 	case int16:
-		return int64(v)
+		return int64(v), nil
 	case int32:
-		return int64(v)
+		return int64(v), nil
 
 	case uint8:
-		return int64(v)
+		return int64(v), nil
 	case uint16:
-		return int64(v)
+		return int64(v), nil
 	case uint32:
-		return int64(v)
+		return int64(v), nil
 	}
-	return 0
+
+	return 0, fmt.Errorf("cannot convert %v (type %T) to int64", val, val)
 }
 
-func asUint(val interface{}) uint {
-	switch v := val.(type) {
-	case uint:
-		return v
-
-	case int8:
-		return uint(v)
-	case int16:
-		return uint(v)
-
-	case uint8:
-		return uint(v)
-	case uint16:
-		return uint(v)
-	case uint32:
-		return uint(v)
-	}
-	return 0
-}
-
-func asUint64(val interface{}) uint64 {
-	switch v := val.(type) {
-	case uint:
-		return uint64(v)
-	case uint64:
-		return v
-
-	case int8:
-		return uint64(v)
-	case int16:
-		return uint64(v)
-	case int32:
-		return uint64(v)
-
-	case uint8:
-		return uint64(v)
-	case uint16:
-		return uint64(v)
-	case uint32:
-		return uint64(v)
-	}
-	return 0
-}
-
-func asFloat64(val interface{}) float64 {
+func asUint(val interface{}) (uint, error) {
 	switch v := val.(type) {
 	case int:
-		return float64(v)
+		if v >= 0 {
+			return uint(v), nil
+		}
+
 	case uint:
-		return float64(v)
+		return v, nil
 
 	case int8:
-		return float64(v)
+		if v >= 0 {
+			return uint(v), nil
+		}
+
 	case int16:
-		return float64(v)
+		if v >= 0 {
+			return uint(v), nil
+		}
+
 	case int32:
-		return float64(v)
-	case int64:
-		return float64(v)
+		if v >= 0 {
+			return uint(v), nil
+		}
 
 	case uint8:
-		return float64(v)
+		return uint(v), nil
 	case uint16:
-		return float64(v)
+		return uint(v), nil
 	case uint32:
-		return float64(v)
+		return uint(v), nil
+	}
+
+	return 0, fmt.Errorf("cannot convert %v (type %T) to uint", val, val)
+}
+
+func asUint64(val interface{}) (uint64, error) {
+	switch v := val.(type) {
+	case int:
+		if v >= 0 {
+			return uint64(v), nil
+		}
+
+	case uint:
+		return uint64(v), nil
 	case uint64:
-		return float64(v)
+		return v, nil
+
+	case int8:
+		if v >= 0 {
+			return uint64(v), nil
+		}
+
+	case int16:
+		if v >= 0 {
+			return uint64(v), nil
+		}
+
+	case int32:
+		if v >= 0 {
+			return uint64(v), nil
+		}
+
+	case int64:
+		if v >= 0 {
+			return uint64(v), nil
+		}
+
+	case uint8:
+		return uint64(v), nil
+	case uint16:
+		return uint64(v), nil
+	case uint32:
+		return uint64(v), nil
+	}
+
+	return 0, fmt.Errorf("cannot convert %v (type %T) to uint64", val, val)
+}
+
+func asFloat64(val interface{}) (float64, error) {
+	switch v := val.(type) {
+	case int:
+		return float64(v), nil
+	case uint:
+		return float64(v), nil
+
+	case int8:
+		return float64(v), nil
+	case int16:
+		return float64(v), nil
+	case int32:
+		return float64(v), nil
+	case int64:
+		return float64(v), nil
+
+	case uint8:
+		return float64(v), nil
+	case uint16:
+		return float64(v), nil
+	case uint32:
+		return float64(v), nil
+	case uint64:
+		return float64(v), nil
 
 	case float32:
-		return float64(v)
+		return float64(v), nil
 	case float64:
-		return v
+		return v, nil
 	}
-	return 0
+
+	return 0, fmt.Errorf("cannot convert %v (type %T) to float64", val, val)
 }
 
-func asDuration(val interface{}) time.Duration {
-	switch v := val.(type) {
-	case int:
-		return time.Duration(v)
-	case int64:
-		return time.Duration(v)
-	case time.Duration:
-		return v
+func asDuration(val interface{}) (time.Duration, error) {
+	if v, ok := val.(time.Duration); ok {
+		return v, nil
 	}
-	return 0
+
+	v, err := asInt64(val)
+	if err != nil {
+		return 0, fmt.Errorf("cannot convert %v (type %T) to time.Duration", val, val)
+	}
+	return time.Duration(v), nil
 }
 
 // ToFlagSet takes a slice of [Param] and produces:
@@ -382,31 +440,58 @@ func ToFlagSet(params []Param) (fs *flag.FlagSet, ptrs []reflect.Value, position
 			v = fs.Bool(name, dflt, p.Doc)
 
 		case Int:
-			v = fs.Int(name, asInt(p.Default), p.Doc)
+			dflt, err := asInt(p.Default)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			v = fs.Int(name, dflt, p.Doc)
 
 		case Int64:
-			v = fs.Int64(name, asInt64(p.Default), p.Doc)
+			dflt, err := asInt64(p.Default)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			v = fs.Int64(name, dflt, p.Doc)
 
 		case Uint:
-			v = fs.Uint(name, asUint(p.Default), p.Doc)
+			dflt, err := asUint(p.Default)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			v = fs.Uint(name, dflt, p.Doc)
 
 		case Uint64:
-			v = fs.Uint64(name, asUint64(p.Default), p.Doc)
+			dflt, err := asUint64(p.Default)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			v = fs.Uint64(name, dflt, p.Doc)
 
 		case String:
-			dflt, _ := p.Default.(string)
+			dflt, ok := p.Default.(string)
+			if !ok {
+				return nil, nil, nil, fmt.Errorf("param %s has type String but default value %v has type %T", p.Name, p.Default, p.Default)
+			}
 			v = fs.String(name, dflt, p.Doc)
 
 		case Float64:
-			v = fs.Float64(name, asFloat64(p.Default), p.Doc)
+			dflt, err := asFloat64(p.Default)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			v = fs.Float64(name, dflt, p.Doc)
 
 		case Duration:
-			v = fs.Duration(name, asDuration(p.Default), p.Doc)
+			dflt, err := asDuration(p.Default)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			v = fs.Duration(name, dflt, p.Doc)
 
 		case Value:
 			val, ok := p.Default.(flag.Value)
 			if !ok {
-				err = fmt.Errorf("param %s has type Value but default value %v is not a flag.Value", p.Name, p.Default)
+				err = fmt.Errorf("param %s has type Value but default value %v has type %T", p.Name, p.Default, p.Default)
 				return
 			}
 			fs.Var(val, name, p.Doc)
