@@ -154,16 +154,56 @@ func TestCheckParam(t *testing.T) {
 		t.Run(ptyp.String(), func(t *testing.T) {
 			for ptyp2 := Bool; ptyp2 <= Duration; ptyp2++ {
 				t.Run(ptyp2.String(), func(t *testing.T) {
-					err := checkParam(Param{Type: ptyp, Default: dflts[ptyp2]})
+					wantErr := true
+
+					switch ptyp {
+					case Int64:
+						wantErr = ptyp2 != Int
+
+					case Uint:
+						wantErr = ptyp2 != Int
+
+					case Uint64:
+						switch ptyp2 {
+						case Int, Int64, Uint:
+							wantErr = false
+						default:
+							wantErr = true
+						}
+
+					case Float64:
+						switch ptyp2 {
+						case Int, Int64, Uint, Uint64:
+							wantErr = false
+						default:
+							wantErr = true
+						}
+
+					case Duration:
+						switch ptyp2 {
+						case Int, Int64:
+							wantErr = false
+						default:
+							wantErr = true
+						}
+					}
+
 					if ptyp == ptyp2 {
-						if err != nil {
+						wantErr = false
+					}
+
+					err := checkParam(Param{Type: ptyp, Default: dflts[ptyp2]})
+					if err != nil {
+						if !wantErr {
 							t.Error(err)
+						} else {
+							var e ParamDefaultErr
+							if !errors.As(err, &e) {
+								t.Errorf("got %v, want ParamDefaultErr", err)
+							}
 						}
-					} else {
-						var e ParamDefaultErr
-						if !errors.As(err, &e) {
-							t.Errorf("got %v, want ParamDefaultErr", err)
-						}
+					} else if wantErr {
+						t.Errorf("got nil, want ParamDefaultErr")
 					}
 				})
 			}

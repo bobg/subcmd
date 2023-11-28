@@ -240,5 +240,5 @@ type ParamDefaultErr struct {
 }
 
 func (e ParamDefaultErr) Error() string {
-	return fmt.Sprintf("default value %v is not of type %v", e.Param.Default, e.Param.Type)
+	return fmt.Sprintf("default value %v (%T) is not of type %v", e.Param.Default, e.Param.Default, e.Param.Type)
 }

@@ -1,6 +1,7 @@
 package subcmd
 
 import (
+	"flag"
 	"reflect"
 
 	"github.com/pkg/errors"
@@ -60,8 +61,51 @@ func checkFuncType(ft reflect.Type, params []Param) error {
 }
 
 func checkParam(param Param) error {
-	if !reflect.TypeOf(param.Default).AssignableTo(param.Type.reflectType()) {
-		return ParamDefaultErr{Param: param}
+	switch param.Type {
+	case Bool:
+		if _, ok := param.Default.(bool); !ok {
+			return ParamDefaultErr{Param: param}
+		}
+
+	case Int:
+		if _, err := asInt(param.Default); err != nil {
+			return ParamDefaultErr{Param: param}
+		}
+
+	case Int64:
+		if _, err := asInt64(param.Default); err != nil {
+			return ParamDefaultErr{Param: param}
+		}
+
+	case Uint:
+		if _, err := asUint(param.Default); err != nil {
+			return ParamDefaultErr{Param: param}
+		}
+
+	case Uint64:
+		if _, err := asUint64(param.Default); err != nil {
+			return ParamDefaultErr{Param: param}
+		}
+
+	case String:
+		if _, ok := param.Default.(string); !ok {
+			return ParamDefaultErr{Param: param}
+		}
+
+	case Float64:
+		if _, err := asFloat64(param.Default); err != nil {
+			return ParamDefaultErr{Param: param}
+		}
+
+	case Duration:
+		if _, err := asDuration(param.Default); err != nil {
+			return ParamDefaultErr{Param: param}
+		}
+
+	case Value:
+		if _, ok := param.Default.(flag.Value); !ok {
+			return ParamDefaultErr{Param: param}
+		}
 	}
 
 	return nil

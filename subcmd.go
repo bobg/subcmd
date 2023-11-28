@@ -336,6 +336,10 @@ func Params(a ...interface{}) []Param {
 // in which case the result is a [HelpRequestedErr],
 // or unless c is also a [Prefixer].
 //
+// The subcommand map of c is checked with [CheckMap] before args are parsed,
+// and any error returned.
+// This can be suppressed by passing a context from [WithSuppressCheck].
+//
 // If c is a Prefixer and the subcommand name is both unknown and not "help",
 // then an executable is sought in $PATH with c's prefix plus the subcommand name.
 // (For example, if c.Prefix() returns "foo-" and the subcommand name is "bar",
@@ -359,6 +363,12 @@ func Run(ctx context.Context, c Cmd, args []string) error {
 	}
 
 	cmds := c.Subcmds()
+
+	if !SuppressCheck(ctx) {
+		if err := CheckMap(cmds); err != nil {
+			return errors.Wrap(err, "checking subcommand map")
+		}
+	}
 
 	name := args[0]
 	args = args[1:]
