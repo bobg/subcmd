@@ -4,6 +4,7 @@ package subcmd
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -19,7 +20,7 @@ var (
 	errType      = reflect.TypeOf((*error)(nil)).Elem()
 	strSliceType = reflect.TypeOf([]string(nil))
 	strType      = reflect.TypeOf("")
-	valueType    = reflect.TypeOf((*ValueType)(nil)).Elem()
+	valueType    = reflect.TypeOf((*flag.Value)(nil)).Elem()
 )
 
 // Cmd is a command that has subcommands.
@@ -77,8 +78,8 @@ type Subcmd struct {
 	// where OPTS stands for a sequence of zero or more additional parameters
 	// corresponding to the types in Params.
 	//
-	// A Param with type Value supplies a [ValueType] to the function.
-	// It's up to the function to type-assert the ValueType to a more-specific type to read the value it contains.
+	// A Param with type Value supplies a [flag.Value] to the function.
+	// It's up to the function to type-assert the flag.Value to a more-specific type to read the value it contains.
 	F interface{}
 
 	// Params describes the parameters to F
@@ -103,7 +104,8 @@ type Param struct {
 	// Default is a default value for the parameter.
 	// Its type must be suitable for Type.
 	// If Type is Value,
-	// then Default must be a [ValueType].
+	// then Default must be a [flag.Value].
+	// It may optionally also be a [Copier], qv.
 	Default interface{}
 
 	// Doc is a docstring for the parameter.
@@ -147,7 +149,7 @@ func (t Type) String() string {
 	case Duration:
 		return "time.Duration"
 	case Value:
-		return "ValueType"
+		return "flag.Value"
 	default:
 		return fmt.Sprintf("unknown type %d", t)
 	}
@@ -239,7 +241,7 @@ func (t Type) reflectType() reflect.Type {
 //	}
 //
 // Note, if a parameter's type is [Value],
-// then its default value must be a [ValueType].
+// then its default value must be a [flag.Value].
 //
 // This function panics if the number or types of the arguments are wrong.
 func Commands(args ...interface{}) Map {
@@ -289,7 +291,7 @@ func Commands(args ...interface{}) Map {
 //   - the doc string for the parameter.
 //
 // Note, if a parameter's type is [Value],
-// then its default value must be a [ValueType].
+// then its default value must be a [flag.Value].
 //
 // This function panics if the number or types of the arguments are wrong.
 func Params(a ...interface{}) []Param {

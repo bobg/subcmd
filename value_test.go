@@ -2,6 +2,7 @@ package subcmd
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"reflect"
 	"strings"
@@ -68,7 +69,7 @@ func (c *valuetestcmd) Subcmds() Map {
 	)
 }
 
-func (c *valuetestcmd) a(_ context.Context, x, y, pos1, pos2 ValueType, rest []string) error {
+func (c *valuetestcmd) a(_ context.Context, x, y, pos1, pos2 flag.Value, rest []string) error {
 	if x, _ := x.(*valuetestvalue); x != nil {
 		c.x = *x
 	}
@@ -85,7 +86,7 @@ func (c *valuetestcmd) a(_ context.Context, x, y, pos1, pos2 ValueType, rest []s
 	return nil
 }
 
-func (c *valuetestcmd) differentValues(_ context.Context, xv, yv ValueType, _ []string) error {
+func (c *valuetestcmd) differentValues(_ context.Context, xv, yv flag.Value, _ []string) error {
 	x, ok := xv.(*valuetestvalue)
 	if !ok {
 		return fmt.Errorf("unexpected type %T for x", xv)
@@ -107,8 +108,6 @@ type valuetestvalue struct {
 	result []string
 }
 
-var _ ValueType = &valuetestvalue{}
-
 func (v *valuetestvalue) String() string {
 	if v == nil {
 		return ""
@@ -121,7 +120,7 @@ func (v *valuetestvalue) Set(s string) error {
 	return nil
 }
 
-func (v *valuetestvalue) Copy() ValueType {
+func (v *valuetestvalue) Copy() flag.Value {
 	result := &valuetestvalue{
 		result: make([]string, len(v.result)),
 	}
