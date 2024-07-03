@@ -3,6 +3,7 @@ package subcmd
 import (
 	"context"
 	"flag"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -32,12 +33,32 @@ func TestValue(t *testing.T) {
 	}
 }
 
+func TestDifferentValues(t *testing.T) {
+	dflt := &valuetestvalue{result: []string{"dflt"}}
+	cmd := new(valuetestcmd)
+	cmd.subcmds = Commands(
+		"b", cmd.differentValues, "", Params(
+			"x", Value, dflt, "",
+			"y", Value, dflt, "",
+		),
+	)
+	if err := Run(context.Background(), cmd, []string{"b", "res1", "res2"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 type valuetestcmd struct {
 	x, y, pos1, pos2 valuetestvalue
 	rest             []string
+
+	subcmds Map
 }
 
 func (c *valuetestcmd) Subcmds() Map {
+	if c.subcmds != nil {
+		return c.subcmds
+	}
+
 	return Commands(
 		"a", c.a, "", Params(
 			"-x", Value, &c.x, "",
@@ -65,11 +86,27 @@ func (c *valuetestcmd) a(_ context.Context, x, y, pos1, pos2 flag.Value, rest []
 	return nil
 }
 
+func (c *valuetestcmd) differentValues(_ context.Context, xv, yv flag.Value, _ []string) error {
+	x, ok := xv.(*valuetestvalue)
+	if !ok {
+		return fmt.Errorf("unexpected type %T for x", xv)
+	}
+	y, ok := yv.(*valuetestvalue)
+	if !ok {
+		return fmt.Errorf("unexpected type %T for y", yv)
+	}
+	if len(x.result) != 1 || x.result[0] != "res1" {
+		return fmt.Errorf("unexpected x value %v", x.result)
+	}
+	if len(y.result) != 1 || y.result[0] != "res2" {
+		return fmt.Errorf("unexpected y value %v", y.result)
+	}
+	return nil
+}
+
 type valuetestvalue struct {
 	result []string
 }
-
-var _ flag.Value = &valuetestvalue{}
 
 func (v *valuetestvalue) String() string {
 	if v == nil {
@@ -81,4 +118,12 @@ func (v *valuetestvalue) String() string {
 func (v *valuetestvalue) Set(s string) error {
 	v.result = strings.Split(s, ",")
 	return nil
+}
+
+func (v *valuetestvalue) Copy() flag.Value {
+	result := &valuetestvalue{
+		result: make([]string, len(v.result)),
+	}
+	copy(result.result, v.result)
+	return result
 }

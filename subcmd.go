@@ -78,7 +78,7 @@ type Subcmd struct {
 	// where OPTS stands for a sequence of zero or more additional parameters
 	// corresponding to the types in Params.
 	//
-	// A Param with type Value supplies a flag.Value to the function.
+	// A Param with type Value supplies a [flag.Value] to the function.
 	// It's up to the function to type-assert the flag.Value to a more-specific type to read the value it contains.
 	F interface{}
 
@@ -104,7 +104,8 @@ type Param struct {
 	// Default is a default value for the parameter.
 	// Its type must be suitable for Type.
 	// If Type is Value,
-	// then Default must be a flag.Value.
+	// then Default must be a [flag.Value].
+	// It may optionally also be a [Copier], qv.
 	Default interface{}
 
 	// Doc is a docstring for the parameter.

@@ -212,6 +212,9 @@ func parseValuePos(args *[]string, argvals *[]reflect.Value, p Param) error {
 	if !ok {
 		return ParseErr{Err: fmt.Errorf("param %s is not a flag.Value", p.Name)}
 	}
+	if copier, ok := val.(Copier); ok {
+		val = copier.Copy()
+	}
 	if len(*args) > 0 {
 		if err := val.Set((*args)[0]); err != nil {
 			return ParseErr{Err: err}
@@ -406,8 +409,11 @@ func ToFlagSet(params []Param) (fs *flag.FlagSet, ptrs []reflect.Value, position
 		case Value:
 			val, ok := p.Default.(flag.Value)
 			if !ok {
-				err = fmt.Errorf("param %s has type Value but default value %v is not a flag.Value", p.Name, p.Default)
+				err = fmt.Errorf("param %s has type Value but default value %v is not a ValueType", p.Name, p.Default)
 				return
+			}
+			if copier, ok := val.(Copier); ok {
+				val = copier.Copy()
 			}
 			fs.Var(val, name, p.Doc)
 			v = val
@@ -421,4 +427,15 @@ func ToFlagSet(params []Param) (fs *flag.FlagSet, ptrs []reflect.Value, position
 	}
 
 	return fs, ptrs, positional, nil
+}
+
+// Copier is a [flag.Value] that can copy itself.
+// Your type should implement Copier
+// if you want to be able to use the same default value for multiple arguments
+// without changes to one
+// (e.g. when parsing command-line options into it)
+// affecting the others.
+type Copier interface {
+	flag.Value
+	Copy() flag.Value
 }
