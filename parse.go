@@ -208,10 +208,11 @@ func parseDurationPos(args *[]string, argvals *[]reflect.Value, p Param) error {
 }
 
 func parseValuePos(args *[]string, argvals *[]reflect.Value, p Param) error {
-	val, ok := p.Default.(flag.Value)
+	val, ok := p.Default.(ValueType)
 	if !ok {
-		return ParseErr{Err: fmt.Errorf("param %s is not a flag.Value", p.Name)}
+		return ParseErr{Err: fmt.Errorf("param %s is not a ValueType", p.Name)}
 	}
+	val = val.Copy()
 	if len(*args) > 0 {
 		if err := val.Set((*args)[0]); err != nil {
 			return ParseErr{Err: err}
@@ -358,7 +359,7 @@ func asDuration(val interface{}) time.Duration {
 // ToFlagSet takes a slice of [Param] and produces:
 //
 //   - a [flag.FlagSet],
-//   - a list of properly typed pointers (or in the case of a [Value]-typed Param, a [flag.Value]) in which to store the results of calling Parse on the FlagSet,
+//   - a list of properly typed pointers (or in the case of a [Value]-typed Param, a [ValueType]) in which to store the results of calling Parse on the FlagSet,
 //   - a list of positional Params that are not part of the resulting FlagSet.
 //
 // On a successful return, len(ptrs)+len(positional) == len(params).
@@ -404,11 +405,12 @@ func ToFlagSet(params []Param) (fs *flag.FlagSet, ptrs []reflect.Value, position
 			v = fs.Duration(name, asDuration(p.Default), p.Doc)
 
 		case Value:
-			val, ok := p.Default.(flag.Value)
+			val, ok := p.Default.(ValueType)
 			if !ok {
-				err = fmt.Errorf("param %s has type Value but default value %v is not a flag.Value", p.Name, p.Default)
+				err = fmt.Errorf("param %s has type Value but default value %v is not a ValueType", p.Name, p.Default)
 				return
 			}
+			val = val.Copy()
 			fs.Var(val, name, p.Doc)
 			v = val
 
