@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/bobg/errors"
 )
 
 // If variadic is false, the length of the resulting slice is len(params)+2.

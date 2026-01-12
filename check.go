@@ -3,7 +3,7 @@ package subcmd
 import (
 	"reflect"
 
-	"github.com/pkg/errors"
+	"github.com/bobg/errors"
 )
 
 // Check checks that the type of subcmd.F matches the expectations set by subcmd.Params:

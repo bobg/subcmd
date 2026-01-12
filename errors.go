@@ -44,7 +44,7 @@ func (e *MissingSubcmdErr) Error() string {
 	return fmt.Sprintf("missing subcommand, want one of: %s", strings.Join(subcmdNames(e.cmd), "; "))
 }
 
-// Detail implements Usage.
+// Detail implements [UsageErr].
 func (e *MissingSubcmdErr) Detail() string {
 	return missingUnknownSubcmd("Missing subcommand, want one of:", e.cmd)
 }

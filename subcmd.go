@@ -12,7 +12,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/bobg/errors"
 )
 
 var (
